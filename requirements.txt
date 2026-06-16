@@ -15,3 +15,11 @@ openai==2.37.0
 google-api-python-client==2.197.0
 google-auth==2.53.0
 google-auth-oauthlib==1.4.0
+
+# --- Senpai (Phase 2) ---
+# Manager dashboard (senpai/apps/manager_dashboard.py) + dataframe handling.
+streamlit==1.40.2
+pandas==2.2.3
+
+# Unit tests for the deal-health engine (senpai/tests/).
+pytest==8.3.4

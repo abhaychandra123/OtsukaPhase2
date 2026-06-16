@@ -1,0 +1,1901 @@
+[
+  {
+    "deal_id": "D001",
+    "customer_id": "C33",
+    "rep_id": "R02",
+    "products": [
+      "NSW24",
+      "MFP15"
+    ],
+    "amount": 450000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-02-01"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-02-11"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-02-21"
+      }
+    ],
+    "expected_close_date": "2026-05-27",
+    "close_date_history": [
+      "2026-04-27",
+      "2026-05-12",
+      "2026-05-27"
+    ],
+    "last_contact_date": "2026-04-10",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D002",
+    "customer_id": "C22",
+    "rep_id": "R06",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 41400,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-02-07"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-02-17"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-02-27"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-03-09"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-03-19"
+      }
+    ],
+    "expected_close_date": "2026-05-17",
+    "close_date_history": [
+      "2026-04-17",
+      "2026-05-02",
+      "2026-05-17"
+    ],
+    "last_contact_date": "2026-04-11",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D003",
+    "customer_id": "C12",
+    "rep_id": "R05",
+    "products": [
+      "NSW24",
+      "MFP30"
+    ],
+    "amount": 882000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-02-23"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-03-05"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-03-15"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-03-25"
+      }
+    ],
+    "expected_close_date": "2026-05-17",
+    "close_date_history": [
+      "2026-04-17",
+      "2026-05-02",
+      "2026-05-17"
+    ],
+    "last_contact_date": "2026-04-10",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D004",
+    "customer_id": "C06",
+    "rep_id": "R05",
+    "products": [
+      "MFP30",
+      "MFP15"
+    ],
+    "amount": 1008000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-03-06"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-03-16"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-03-26"
+      }
+    ],
+    "expected_close_date": "2026-05-27",
+    "close_date_history": [
+      "2026-04-27",
+      "2026-05-12",
+      "2026-05-27"
+    ],
+    "last_contact_date": "2026-04-28",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D005",
+    "customer_id": "C30",
+    "rep_id": "R07",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 55200,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-20"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-30"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-10"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-20"
+      }
+    ],
+    "expected_close_date": "2026-06-30",
+    "close_date_history": [
+      "2026-06-30"
+    ],
+    "last_contact_date": "2026-06-09",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "won"
+  },
+  {
+    "deal_id": "D006",
+    "customer_id": "C04",
+    "rep_id": "R04",
+    "products": [
+      "SRV20"
+    ],
+    "amount": 1040000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-12"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-22"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-02"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-12"
+      }
+    ],
+    "expected_close_date": "2026-07-29",
+    "close_date_history": [
+      "2026-07-29"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D007",
+    "customer_id": "C16",
+    "rep_id": "R05",
+    "products": [
+      "MFP30",
+      "OFFICE"
+    ],
+    "amount": 761400,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-18"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-28"
+      }
+    ],
+    "expected_close_date": "2026-07-11",
+    "close_date_history": [
+      "2026-07-11"
+    ],
+    "last_contact_date": "2026-06-06",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D008",
+    "customer_id": "C25",
+    "rep_id": "R01",
+    "products": [
+      "SRV20",
+      "MFP30"
+    ],
+    "amount": 2280000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-01"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-11"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-21"
+      }
+    ],
+    "expected_close_date": "2026-07-25",
+    "close_date_history": [
+      "2026-07-25"
+    ],
+    "last_contact_date": "2026-06-03",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D009",
+    "customer_id": "C35",
+    "rep_id": "R01",
+    "products": [
+      "NSW24",
+      "AV365"
+    ],
+    "amount": 60800,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-18"
+      }
+    ],
+    "expected_close_date": "2026-08-15",
+    "close_date_history": [
+      "2026-08-15"
+    ],
+    "last_contact_date": "2026-06-12",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D010",
+    "customer_id": "C31",
+    "rep_id": "R01",
+    "products": [
+      "LP14"
+    ],
+    "amount": 336000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-06-12"
+      }
+    ],
+    "expected_close_date": "2026-06-22",
+    "close_date_history": [
+      "2026-06-22"
+    ],
+    "last_contact_date": "2026-05-23",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D011",
+    "customer_id": "C30",
+    "rep_id": "R05",
+    "products": [
+      "MFP15",
+      "NSW24"
+    ],
+    "amount": 150000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-16"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-26"
+      }
+    ],
+    "expected_close_date": "2026-07-28",
+    "close_date_history": [
+      "2026-08-17",
+      "2026-07-28"
+    ],
+    "last_contact_date": "2026-06-13",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D012",
+    "customer_id": "C24",
+    "rep_id": "R02",
+    "products": [
+      "MFP30",
+      "SRV20"
+    ],
+    "amount": 3040000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-18"
+      }
+    ],
+    "expected_close_date": "2026-07-31",
+    "close_date_history": [
+      "2026-07-31"
+    ],
+    "last_contact_date": "2026-06-05",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D013",
+    "customer_id": "C18",
+    "rep_id": "R08",
+    "products": [
+      "AV365"
+    ],
+    "amount": 27200,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-11"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-21"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-01"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-11"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-05-21"
+      }
+    ],
+    "expected_close_date": "2026-06-22",
+    "close_date_history": [
+      "2026-06-22"
+    ],
+    "last_contact_date": "2026-06-06",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D014",
+    "customer_id": "C16",
+    "rep_id": "R07",
+    "products": [
+      "NSW24",
+      "MFP15"
+    ],
+    "amount": 600000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-17"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-27"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-07"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-17"
+      }
+    ],
+    "expected_close_date": "2026-06-22",
+    "close_date_history": [
+      "2026-07-12",
+      "2026-06-22"
+    ],
+    "last_contact_date": "2026-05-22",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D015",
+    "customer_id": "C13",
+    "rep_id": "R06",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 27600,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-22"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-06-01"
+      }
+    ],
+    "expected_close_date": "2026-07-21",
+    "close_date_history": [
+      "2026-08-10",
+      "2026-07-21"
+    ],
+    "last_contact_date": "2026-05-24",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "lost"
+  },
+  {
+    "deal_id": "D016",
+    "customer_id": "C20",
+    "rep_id": "R01",
+    "products": [
+      "LP14"
+    ],
+    "amount": 168000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-10"
+      }
+    ],
+    "expected_close_date": "2026-08-04",
+    "close_date_history": [
+      "2026-08-04"
+    ],
+    "last_contact_date": "2026-06-07",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D017",
+    "customer_id": "C17",
+    "rep_id": "R08",
+    "products": [
+      "AV365"
+    ],
+    "amount": 6800,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-14"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-24"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-04"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-14"
+      }
+    ],
+    "expected_close_date": "2026-07-27",
+    "close_date_history": [
+      "2026-07-27"
+    ],
+    "last_contact_date": "2026-06-14",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "won"
+  },
+  {
+    "deal_id": "D018",
+    "customer_id": "C15",
+    "rep_id": "R07",
+    "products": [
+      "SRV20",
+      "LP14"
+    ],
+    "amount": 2752000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-19"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-29"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-09"
+      }
+    ],
+    "expected_close_date": "2026-06-24",
+    "close_date_history": [
+      "2026-06-24"
+    ],
+    "last_contact_date": "2026-05-28",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D019",
+    "customer_id": "C19",
+    "rep_id": "R01",
+    "products": [
+      "LP14"
+    ],
+    "amount": 504000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-11"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-21"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-31"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-06-10"
+      }
+    ],
+    "expected_close_date": "2026-07-05",
+    "close_date_history": [
+      "2026-07-05"
+    ],
+    "last_contact_date": "2026-05-26",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D020",
+    "customer_id": "C29",
+    "rep_id": "R02",
+    "products": [
+      "OFFICE",
+      "LP14"
+    ],
+    "amount": 727200,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-23"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-03"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-13"
+      }
+    ],
+    "expected_close_date": "2026-07-22",
+    "close_date_history": [
+      "2026-07-22"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "won"
+  },
+  {
+    "deal_id": "D021",
+    "customer_id": "C03",
+    "rep_id": "R03",
+    "products": [
+      "NSW24",
+      "OFFICE"
+    ],
+    "amount": 271200,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-14"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-24"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-06-03"
+      }
+    ],
+    "expected_close_date": "2026-07-18",
+    "close_date_history": [
+      "2026-07-18"
+    ],
+    "last_contact_date": "2026-05-29",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D022",
+    "customer_id": "C30",
+    "rep_id": "R02",
+    "products": [
+      "LP14",
+      "AV365"
+    ],
+    "amount": 174800,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-13"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-23"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-03"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-13"
+      }
+    ],
+    "expected_close_date": "2026-08-02",
+    "close_date_history": [
+      "2026-08-02"
+    ],
+    "last_contact_date": "2026-06-16",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D023",
+    "customer_id": "C29",
+    "rep_id": "R08",
+    "products": [
+      "MFP30"
+    ],
+    "amount": 480000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-16"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-26"
+      }
+    ],
+    "expected_close_date": "2026-06-21",
+    "close_date_history": [
+      "2026-06-21"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D024",
+    "customer_id": "C19",
+    "rep_id": "R05",
+    "products": [
+      "AV365",
+      "SRV20"
+    ],
+    "amount": 2107200,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-06"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-16"
+      }
+    ],
+    "expected_close_date": "2026-06-30",
+    "close_date_history": [
+      "2026-06-30"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "lost"
+  },
+  {
+    "deal_id": "D025",
+    "customer_id": "C01",
+    "rep_id": "R05",
+    "products": [
+      "AV365",
+      "NSW24"
+    ],
+    "amount": 243200,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-07"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-17"
+      }
+    ],
+    "expected_close_date": "2026-07-21",
+    "close_date_history": [
+      "2026-07-21"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D026",
+    "customer_id": "C25",
+    "rep_id": "R03",
+    "products": [
+      "MFP30",
+      "MFP15"
+    ],
+    "amount": 1008000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-17"
+      }
+    ],
+    "expected_close_date": "2026-07-24",
+    "close_date_history": [
+      "2026-07-24"
+    ],
+    "last_contact_date": "2026-06-13",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D027",
+    "customer_id": "C21",
+    "rep_id": "R08",
+    "products": [
+      "NSW24"
+    ],
+    "amount": 54000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-17"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-27"
+      }
+    ],
+    "expected_close_date": "2026-08-07",
+    "close_date_history": [
+      "2026-08-27",
+      "2026-08-07"
+    ],
+    "last_contact_date": "2026-06-09",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D028",
+    "customer_id": "C11",
+    "rep_id": "R03",
+    "products": [
+      "NSW24"
+    ],
+    "amount": 216000,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-20"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-30"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-10"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-20"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-05-30"
+      }
+    ],
+    "expected_close_date": "2026-07-28",
+    "close_date_history": [
+      "2026-08-17",
+      "2026-07-28"
+    ],
+    "last_contact_date": "2026-06-01",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D029",
+    "customer_id": "C30",
+    "rep_id": "R05",
+    "products": [
+      "SRV20"
+    ],
+    "amount": 2080000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-30"
+      }
+    ],
+    "expected_close_date": "2026-07-27",
+    "close_date_history": [
+      "2026-07-27"
+    ],
+    "last_contact_date": "2026-06-04",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D030",
+    "customer_id": "C13",
+    "rep_id": "R05",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 13800,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-26"
+      }
+    ],
+    "expected_close_date": "2026-07-19",
+    "close_date_history": [
+      "2026-08-08",
+      "2026-07-19"
+    ],
+    "last_contact_date": "2026-05-22",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D031",
+    "customer_id": "C17",
+    "rep_id": "R08",
+    "products": [
+      "OFFICE",
+      "LP14"
+    ],
+    "amount": 181800,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-11"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-21"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-31"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-06-10"
+      }
+    ],
+    "expected_close_date": "2026-08-08",
+    "close_date_history": [
+      "2026-08-08"
+    ],
+    "last_contact_date": "2026-06-12",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "lost"
+  },
+  {
+    "deal_id": "D032",
+    "customer_id": "C25",
+    "rep_id": "R06",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 27600,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-14"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-24"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-06-03"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-06-13"
+      }
+    ],
+    "expected_close_date": "2026-07-26",
+    "close_date_history": [
+      "2026-07-26"
+    ],
+    "last_contact_date": "2026-05-28",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D033",
+    "customer_id": "C20",
+    "rep_id": "R08",
+    "products": [
+      "MFP30"
+    ],
+    "amount": 480000,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-27"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-07"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-17"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-27"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-06-06"
+      }
+    ],
+    "expected_close_date": "2026-07-20",
+    "close_date_history": [
+      "2026-07-20"
+    ],
+    "last_contact_date": "2026-06-04",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D034",
+    "customer_id": "C29",
+    "rep_id": "R04",
+    "products": [
+      "MFP30",
+      "OFFICE"
+    ],
+    "amount": 761400,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-13"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-23"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-03"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-13"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-05-23"
+      }
+    ],
+    "expected_close_date": "2026-07-16",
+    "close_date_history": [
+      "2026-08-05",
+      "2026-07-16"
+    ],
+    "last_contact_date": "2026-06-15",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D035",
+    "customer_id": "C09",
+    "rep_id": "R04",
+    "products": [
+      "AV365"
+    ],
+    "amount": 13600,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-22"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-02"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-12"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-22"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-06-01"
+      }
+    ],
+    "expected_close_date": "2026-07-12",
+    "close_date_history": [
+      "2026-07-12"
+    ],
+    "last_contact_date": "2026-06-09",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D036",
+    "customer_id": "C09",
+    "rep_id": "R01",
+    "products": [
+      "AV365",
+      "MFP15"
+    ],
+    "amount": 308400,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-06-03"
+      }
+    ],
+    "expected_close_date": "2026-06-24",
+    "close_date_history": [
+      "2026-07-14",
+      "2026-06-24"
+    ],
+    "last_contact_date": "2026-06-08",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "won"
+  },
+  {
+    "deal_id": "D037",
+    "customer_id": "C15",
+    "rep_id": "R01",
+    "products": [
+      "SRV20",
+      "OFFICE"
+    ],
+    "amount": 533800,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-15"
+      }
+    ],
+    "expected_close_date": "2026-07-18",
+    "close_date_history": [
+      "2026-07-18"
+    ],
+    "last_contact_date": "2026-06-04",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D038",
+    "customer_id": "C25",
+    "rep_id": "R05",
+    "products": [
+      "NSW24",
+      "AV365"
+    ],
+    "amount": 243200,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-06-07"
+      }
+    ],
+    "expected_close_date": "2026-08-01",
+    "close_date_history": [
+      "2026-08-01"
+    ],
+    "last_contact_date": "2026-05-27",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D039",
+    "customer_id": "C28",
+    "rep_id": "R06",
+    "products": [
+      "LP14",
+      "MFP15"
+    ],
+    "amount": 1056000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-06-09"
+      }
+    ],
+    "expected_close_date": "2026-06-26",
+    "close_date_history": [
+      "2026-06-26"
+    ],
+    "last_contact_date": "2026-06-14",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "won"
+  },
+  {
+    "deal_id": "D040",
+    "customer_id": "C04",
+    "rep_id": "R05",
+    "products": [
+      "LP14",
+      "MFP30"
+    ],
+    "amount": 816000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-05"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-15"
+      }
+    ],
+    "expected_close_date": "2026-08-14",
+    "close_date_history": [
+      "2026-09-03",
+      "2026-08-14"
+    ],
+    "last_contact_date": "2026-06-09",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D041",
+    "customer_id": "C18",
+    "rep_id": "R01",
+    "products": [
+      "LP14"
+    ],
+    "amount": 504000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-03"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-13"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-23"
+      }
+    ],
+    "expected_close_date": "2026-07-02",
+    "close_date_history": [
+      "2026-07-02"
+    ],
+    "last_contact_date": "2026-06-16",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D042",
+    "customer_id": "C04",
+    "rep_id": "R03",
+    "products": [
+      "AV365"
+    ],
+    "amount": 6800,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-28"
+      }
+    ],
+    "expected_close_date": "2026-08-02",
+    "close_date_history": [
+      "2026-08-02"
+    ],
+    "last_contact_date": "2026-06-02",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D043",
+    "customer_id": "C01",
+    "rep_id": "R04",
+    "products": [
+      "MFP15",
+      "AV365"
+    ],
+    "amount": 308400,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-05"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-15"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-25"
+      }
+    ],
+    "expected_close_date": "2026-06-21",
+    "close_date_history": [
+      "2026-06-21"
+    ],
+    "last_contact_date": "2026-06-13",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D044",
+    "customer_id": "C28",
+    "rep_id": "R07",
+    "products": [
+      "LP14",
+      "MFP30"
+    ],
+    "amount": 1632000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-25"
+      }
+    ],
+    "expected_close_date": "2026-08-11",
+    "close_date_history": [
+      "2026-08-11"
+    ],
+    "last_contact_date": "2026-06-11",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D045",
+    "customer_id": "C22",
+    "rep_id": "R04",
+    "products": [
+      "AV365",
+      "MFP15"
+    ],
+    "amount": 102800,
+    "stage": "closing",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-28"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-08"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-18"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-28"
+      },
+      {
+        "stage": "closing",
+        "entered_date": "2026-06-07"
+      }
+    ],
+    "expected_close_date": "2026-07-23",
+    "close_date_history": [
+      "2026-08-12",
+      "2026-07-23"
+    ],
+    "last_contact_date": "2026-05-31",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "won"
+  },
+  {
+    "deal_id": "D046",
+    "customer_id": "C32",
+    "rep_id": "R08",
+    "products": [
+      "OFFICE",
+      "NSW24"
+    ],
+    "amount": 203400,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-16"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-26"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-06-05"
+      }
+    ],
+    "expected_close_date": "2026-06-25",
+    "close_date_history": [
+      "2026-06-25"
+    ],
+    "last_contact_date": "2026-06-02",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D047",
+    "customer_id": "C05",
+    "rep_id": "R02",
+    "products": [
+      "SRV20",
+      "NSW24"
+    ],
+    "amount": 574000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-09"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-19"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-04-29"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-05-09"
+      }
+    ],
+    "expected_close_date": "2026-07-03",
+    "close_date_history": [
+      "2026-07-03"
+    ],
+    "last_contact_date": "2026-05-27",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "lost"
+  },
+  {
+    "deal_id": "D048",
+    "customer_id": "C16",
+    "rep_id": "R08",
+    "products": [
+      "NSW24",
+      "AV365"
+    ],
+    "amount": 121600,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-02"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-12"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-22"
+      }
+    ],
+    "expected_close_date": "2026-07-15",
+    "close_date_history": [
+      "2026-07-15"
+    ],
+    "last_contact_date": "2026-06-07",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "low",
+    "status": "won"
+  },
+  {
+    "deal_id": "D049",
+    "customer_id": "C22",
+    "rep_id": "R02",
+    "products": [
+      "LP14"
+    ],
+    "amount": 504000,
+    "stage": "negotiation",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-07"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-17"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-27"
+      },
+      {
+        "stage": "negotiation",
+        "entered_date": "2026-06-06"
+      }
+    ],
+    "expected_close_date": "2026-08-05",
+    "close_date_history": [
+      "2026-08-05"
+    ],
+    "last_contact_date": "2026-05-28",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D050",
+    "customer_id": "C12",
+    "rep_id": "R04",
+    "products": [
+      "AV365",
+      "SRV20"
+    ],
+    "amount": 1053600,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-27"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-06-06"
+      }
+    ],
+    "expected_close_date": "2026-06-25",
+    "close_date_history": [
+      "2026-07-15",
+      "2026-06-25"
+    ],
+    "last_contact_date": "2026-06-12",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "low",
+    "status": "open"
+  },
+  {
+    "deal_id": "D051",
+    "customer_id": "C19",
+    "rep_id": "R08",
+    "products": [
+      "NSW24"
+    ],
+    "amount": 108000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-25"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-05"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-15"
+      }
+    ],
+    "expected_close_date": "2026-07-14",
+    "close_date_history": [
+      "2026-07-14"
+    ],
+    "last_contact_date": "2026-06-10",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D052",
+    "customer_id": "C09",
+    "rep_id": "R05",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 55200,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-20"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-04-30"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-10"
+      }
+    ],
+    "expected_close_date": "2026-08-05",
+    "close_date_history": [
+      "2026-08-05"
+    ],
+    "last_contact_date": "2026-06-13",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D053",
+    "customer_id": "C06",
+    "rep_id": "R04",
+    "products": [
+      "LP14",
+      "MFP30"
+    ],
+    "amount": 1632000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-20"
+      }
+    ],
+    "expected_close_date": "2026-07-14",
+    "close_date_history": [
+      "2026-08-03",
+      "2026-07-14"
+    ],
+    "last_contact_date": "2026-05-31",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D054",
+    "customer_id": "C29",
+    "rep_id": "R01",
+    "products": [
+      "MFP30"
+    ],
+    "amount": 720000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-26"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-06-05"
+      }
+    ],
+    "expected_close_date": "2026-08-06",
+    "close_date_history": [
+      "2026-08-06"
+    ],
+    "last_contact_date": "2026-05-30",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D055",
+    "customer_id": "C08",
+    "rep_id": "R08",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 27600,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-17"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-27"
+      }
+    ],
+    "expected_close_date": "2026-06-21",
+    "close_date_history": [
+      "2026-06-21"
+    ],
+    "last_contact_date": "2026-06-03",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D056",
+    "customer_id": "C25",
+    "rep_id": "R06",
+    "products": [
+      "OFFICE",
+      "MFP30"
+    ],
+    "amount": 761400,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-23"
+      }
+    ],
+    "expected_close_date": "2026-08-06",
+    "close_date_history": [
+      "2026-08-06"
+    ],
+    "last_contact_date": "2026-06-09",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  },
+  {
+    "deal_id": "D057",
+    "customer_id": "C30",
+    "rep_id": "R01",
+    "products": [
+      "MFP15",
+      "MFP30"
+    ],
+    "amount": 672000,
+    "stage": "lead",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-25"
+      }
+    ],
+    "expected_close_date": "2026-07-23",
+    "close_date_history": [
+      "2026-07-23"
+    ],
+    "last_contact_date": "2026-06-07",
+    "decision_maker_identified": false,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D058",
+    "customer_id": "C29",
+    "rep_id": "R07",
+    "products": [
+      "MFP15",
+      "SRV20"
+    ],
+    "amount": 2464000,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-22"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-02"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-12"
+      }
+    ],
+    "expected_close_date": "2026-08-11",
+    "close_date_history": [
+      "2026-08-31",
+      "2026-08-11"
+    ],
+    "last_contact_date": "2026-06-08",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D059",
+    "customer_id": "C29",
+    "rep_id": "R07",
+    "products": [
+      "OFFICE"
+    ],
+    "amount": 55200,
+    "stage": "proposal",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-04-27"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-07"
+      },
+      {
+        "stage": "proposal",
+        "entered_date": "2026-05-17"
+      }
+    ],
+    "expected_close_date": "2026-08-06",
+    "close_date_history": [
+      "2026-08-06"
+    ],
+    "last_contact_date": "2026-06-15",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "high",
+    "status": "open"
+  },
+  {
+    "deal_id": "D060",
+    "customer_id": "C10",
+    "rep_id": "R08",
+    "products": [
+      "MFP15"
+    ],
+    "amount": 96000,
+    "stage": "qualified",
+    "stage_history": [
+      {
+        "stage": "lead",
+        "entered_date": "2026-05-12"
+      },
+      {
+        "stage": "qualified",
+        "entered_date": "2026-05-22"
+      }
+    ],
+    "expected_close_date": "2026-07-15",
+    "close_date_history": [
+      "2026-07-15"
+    ],
+    "last_contact_date": "2026-06-05",
+    "decision_maker_identified": true,
+    "rep_close_likelihood": "med",
+    "status": "open"
+  }
+]

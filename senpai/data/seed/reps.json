@@ -1,0 +1,80 @@
+[
+  {
+    "rep_id": "R01",
+    "name": "田中健太",
+    "role": "senior",
+    "specialty_tags": [
+      "複合機",
+      "提案",
+      "クロージング"
+    ],
+    "is_top_performer": true
+  },
+  {
+    "rep_id": "R02",
+    "name": "佐藤美咲",
+    "role": "expert",
+    "specialty_tags": [
+      "ネットワーク",
+      "セキュリティ"
+    ],
+    "is_top_performer": true
+  },
+  {
+    "rep_id": "R03",
+    "name": "鈴木大輔",
+    "role": "expert",
+    "specialty_tags": [
+      "サーバー",
+      "クラウド"
+    ],
+    "is_top_performer": false
+  },
+  {
+    "rep_id": "R04",
+    "name": "高橋由美",
+    "role": "senior",
+    "specialty_tags": [
+      "ソフトウェア",
+      "保守"
+    ],
+    "is_top_performer": true
+  },
+  {
+    "rep_id": "R05",
+    "name": "伊藤翔",
+    "role": "junior",
+    "specialty_tags": [
+      "複合機"
+    ],
+    "is_top_performer": false
+  },
+  {
+    "rep_id": "R06",
+    "name": "渡辺さくら",
+    "role": "junior",
+    "specialty_tags": [
+      "ソフトウェア"
+    ],
+    "is_top_performer": false
+  },
+  {
+    "rep_id": "R07",
+    "name": "山本健一",
+    "role": "junior",
+    "specialty_tags": [
+      "ネットワーク"
+    ],
+    "is_top_performer": false
+  },
+  {
+    "rep_id": "R08",
+    "name": "中村優子",
+    "role": "senior",
+    "specialty_tags": [
+      "クラウド",
+      "提案"
+    ],
+    "is_top_performer": false
+  }
+]
