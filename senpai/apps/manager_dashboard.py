@@ -9,6 +9,13 @@ UI chrome is English; the data content stays Japanese (bilingual by design).
 """
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Streamlit runs this file directly, so the repo root isn't on sys.path by
+# default — add it so `import senpai` resolves (apps → senpai → repo root).
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 import pandas as pd
 import streamlit as st
 

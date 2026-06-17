@@ -1,12 +1,17 @@
 # Senpai — Sales Knowledge & Deal-Health Copilot (Phase 2)
 
 Senpai turns the Phase-1 tool-calling model (**exp3**) into a usable product with
-**two front ends over one shared engine**:
+**three front ends over one shared engine**:
 
 - **Junior assistant** (Gradio chat) — pre-call briefs, in-the-moment playbook
   answers, daily-report drafting, and expert routing. The human, relatable story.
+- **Manager assistant** (Gradio chat) — ask the team pipeline in words: which deals
+  are at risk, a digest of everyone's reports, who needs coaching, draft a nudge.
 - **Manager dashboard** (Streamlit) — the team pipeline with red/yellow/green deal
   health and report-reliability flags. The business-impact layer.
+
+Both chats also have a `web_search` tool (Tavily when `TAVILY_API_KEY` is set, canned
+fallback otherwise) so they double as a normal assistant for ad-hoc research.
 
 The shared core is a **hybrid deal-health scorer**: deterministic Python produces the
 score and the reasons (trustworthy, GPU-free, never hallucinates a number); exp3 only
@@ -40,10 +45,23 @@ there. The dashboard and tests need **none** of that — they are pure Python.
 # Manager dashboard — no GPU, no model server needed
 .venv/bin/streamlit run senpai/apps/manager_dashboard.py     # http://localhost:8501
 
-# Junior chat — needs exp3 served
+# Chats — need exp3 served
 ./scripts/serve_model.sh                                      # exp3 on :8765 (needs GPU)
-.venv/bin/python senpai/apps/junior_chat.py                  # http://localhost:7860
+.venv/bin/python senpai/apps/junior_chat.py                  # junior  → http://localhost:7860
+.venv/bin/python senpai/apps/manager_chat.py                 # manager → http://localhost:7861
 ```
+
+Both chats share the exp3 server; they listen on different ports (7860 / 7861) so you
+can run them side by side. The manager chat is scoped to manager tools
+(`list_at_risk_deals`, `team_pipeline_overview`, `team_report_digest`,
+`rep_coaching_focus`, `draft_message`, `query_spr`, `score_deal_health`, `web_search`);
+the junior chat keeps its coaching tools plus `web_search`.
+
+### Optional: real web search
+
+`web_search` returns canned (Japanese) results offline. For live results, put
+`TAVILY_API_KEY=...` in a repo-root `.env` (loaded automatically) — same mechanism as the
+Phase-1 demo.
 
 Sanity-check the server before the chat demo:
 

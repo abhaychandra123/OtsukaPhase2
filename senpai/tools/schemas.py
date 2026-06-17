@@ -164,4 +164,114 @@ TOOLS = [
             },
         },
     },
+    # --- Manager + shared tools ---------------------------------------------
+    {
+        "type": "function",
+        "function": {
+            "name": "list_at_risk_deals",
+            "description": "List at-risk open deals across the whole team (or one rep), worst first. "
+                           "Each line shows the owner, customer, risk score and the top reason. "
+                           "Defaults to red deals; pass band='yellow' to include yellow too.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "rep_id": {"type": "string", "description": "Optional rep ID to limit to one rep, e.g. 'R05'"},
+                    "band": {"type": "string", "description": "'red' (default), 'yellow' (red+yellow), or 'green'"},
+                    "limit": {"type": "integer", "description": "Max deals to return (default 10)"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "team_pipeline_overview",
+            "description": "Team pipeline at a glance: open-deal count, total ¥ value, breakdown by "
+                           "stage, red/yellow/green health split, and number of flagged reports.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "rep_id": {"type": "string", "description": "Optional rep ID to scope to one rep"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "team_report_digest",
+            "description": "Digest every rep's open deals into one manager view: the flagged/stale/"
+                           "optimistic deals grouped by rep, worst first. Use to review the whole team at once.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "rep_coaching_focus",
+            "description": "Per-rep rollup (deal count, at-risk count, flagged count, average risk), sorted "
+                           "so the reps who need coaching attention come first.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "draft_message",
+            "description": "Draft a short, editable Japanese message (a nudge to a rep or a client "
+                           "follow-up). Pulls deal context when a deal_id is given. Never sends — the human edits and sends.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to": {"type": "string", "description": "Recipient name, e.g. '伊藤さん' or a client"},
+                    "about": {"type": "string", "description": "What the message is about"},
+                    "deal_id": {"type": "string", "description": "Optional related deal ID for context"},
+                    "purpose": {"type": "string", "description": "Optional purpose, e.g. '進捗確認'"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search the web for external information (industry trends, company/customer news, "
+                           "competitor info). Use for facts not in the internal data.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The search query"},
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
+
+
+# --- Role-scoped tool subsets ----------------------------------------------
+# Each front end passes its own list to stream_turn(). Built by name from TOOLS
+# so a schema is defined exactly once.
+_BY_NAME = {t["function"]["name"]: t for t in TOOLS}
+
+
+def _pick(*names: str) -> list[dict]:
+    return [_BY_NAME[n] for n in names]
+
+
+# Junior assistant: the in-context coaching tools + web_search.
+JUNIOR_TOOLS = _pick(
+    "query_spr", "find_similar_deals", "retrieve_playbook",
+    "lookup_customer_environment", "get_product_info", "score_deal_health",
+    "draft_daily_report", "route_to_expert", "get_seasonal_context", "web_search",
+)
+
+# Manager: team analytics + drill-down + drafting + web_search.
+MANAGER_TOOLS = _pick(
+    "query_spr", "score_deal_health", "list_at_risk_deals",
+    "team_pipeline_overview", "team_report_digest", "rep_coaching_focus",
+    "draft_message", "web_search",
+)

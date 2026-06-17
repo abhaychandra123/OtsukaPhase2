@@ -57,16 +57,19 @@ def simple_complete(messages: list[dict], temperature: float = 0.3) -> str:
     return (resp.choices[0].message.content or "").strip()
 
 
-def stream_turn(convo: list[dict]):
+def stream_turn(convo: list[dict], tools: list[dict] | None = None):
     """Generator driving one user turn through the tool loop. Yields
     (tool_log, answer_or_None) after each round; the final yield has the answer.
-    `convo` is mutated in place with assistant/tool messages (demo semantics)."""
+    `convo` is mutated in place with assistant/tool messages (demo semantics).
+    `tools` selects which tool schemas the model may call (defaults to all TOOLS);
+    each front end passes its own role-scoped subset."""
+    tools = tools if tools is not None else TOOLS
     tool_log: list[tuple[str, str, str]] = []
     answer = None
     for _ in range(config.MAX_TOOL_ROUNDS):
         try:
             resp = client.chat.completions.create(
-                model=config.MODEL, messages=convo, tools=TOOLS,
+                model=config.MODEL, messages=convo, tools=tools,
                 tool_choice="auto", temperature=0.0,
             )
         except Exception as e:  # noqa: BLE001
