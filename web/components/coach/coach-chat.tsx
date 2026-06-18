@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BookMarked,
+  Bot,
   CornerDownLeft,
   Eye,
   GraduationCap,
@@ -20,7 +21,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, narrateStream } from "@/lib/api";
 import type {
   CoachExample,
   CoachResponse,
@@ -195,6 +196,44 @@ function PrincipleRef({ p }: { p: Principle }) {
   );
 }
 
+// --- lightweight markdown for the senior's narration -----------------------
+function inlineBold(s: string) {
+  return s.split(/(\*\*[^*]+\*\*)/g).map((p, i) =>
+    p.startsWith("**") && p.endsWith("**")
+      ? <strong key={i} className="font-semibold text-foreground">{p.slice(2, -2)}</strong>
+      : <span key={i}>{p}</span>,
+  );
+}
+
+function NarrationMd({ text }: { text: string }) {
+  const lines = text.replace(/\r/g, "").split("\n");
+  return (
+    <div className="space-y-1.5 font-jp text-[13.5px] leading-relaxed text-foreground/90">
+      {lines.map((ln, i) => {
+        const tx = ln.trim();
+        if (!tx) return <div key={i} className="h-1" />;
+        if (/^---+$/.test(tx)) return <div key={i} className="my-1 border-t border-border" />;
+        if (/^#{1,6}\s/.test(tx)) {
+          return (
+            <h4 key={i} className="pt-2 text-[12px] font-semibold uppercase tracking-[0.04em] text-primary">
+              {tx.replace(/^#{1,6}\s+/, "")}
+            </h4>
+          );
+        }
+        if (/^[-*]\s/.test(tx)) {
+          return (
+            <div key={i} className="flex gap-2 pl-1">
+              <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-primary/60" />
+              <span>{inlineBold(tx.replace(/^[-*]\s+/, ""))}</span>
+            </div>
+          );
+        }
+        return <p key={i}>{inlineBold(tx)}</p>;
+      })}
+    </div>
+  );
+}
+
 // --- the structured coaching response --------------------------------------
 function CoachingCard({
   resp, note, live, principles, items,
@@ -204,7 +243,45 @@ function CoachingCard({
 }) {
   const { t, lang } = useT();
   const [showSimilar, setShowSimilar] = useState(false);
+  const [narr, setNarr] = useState<string | null>(null);
+  const [narrModel, setNarrModel] = useState<string | null>(null);
+  const [narrating, setNarrating] = useState(false);
+  const [narrTried, setNarrTried] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const rel = relevantPrinciples(note, principles);
+
+  async function explain() {
+    if (narrating) return;
+    setNarrating(true);
+    setThinking(true);
+    let acc = "";
+    let model: string | null = null;
+    await narrateStream(note, undefined, (e) => {
+      switch (e.type) {
+        case "start":
+          model = e.model ?? null;
+          setNarrModel(model);
+          break;
+        case "thinking":
+          setThinking(true);
+          break;
+        case "delta":
+          setThinking(false);
+          acc += e.text;
+          setNarr(acc);
+          break;
+        case "done":
+          model = e.model ?? model;
+          setNarrModel(model);
+          break;
+        // fallback | unavailable | error → acc stays empty → fallback message
+      }
+    });
+    setThinking(false);
+    setNarrTried(true);
+    setNarrating(false);
+    if (!acc) setNarr(null);
+  }
   const relIds = rel.map((p) => p.principle_id);
   const similar = similarItems(relIds, items);
 
@@ -231,6 +308,64 @@ function CoachingCard({
             />
           ))}
         </Accordion>
+      </div>
+
+      {/* The senior's explanation — on-demand, streamed token-by-token */}
+      <div>
+        {!narrTried && !narrating && (
+          <button
+            onClick={explain}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[0.03] px-4 py-3 text-left transition-colors hover:bg-primary/[0.06]"
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary"><Bot className="h-4 w-4" /></span>
+              <span>
+                <span className="flex items-center gap-1.5 text-[14px] font-medium text-foreground">
+                  {t("chat.explain")}
+                  <span className="rounded bg-primary/10 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">AI</span>
+                </span>
+                <span className="text-[11.5px] leading-snug text-muted-foreground">{t("chat.explainHint")}</span>
+              </span>
+            </span>
+            <ArrowRight className="h-4 w-4 text-primary" />
+          </button>
+        )}
+
+        {(narrating || narr) && (
+          <div className="animate-fade-up rounded-xl border border-primary/25 bg-primary/[0.02] p-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">
+                <Bot className="h-3.5 w-3.5" /> {t("chat.explainTitle")}
+                {narrating && (
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+                )}
+              </span>
+              {narrModel && (
+                <span className="rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  {t("chat.poweredBy", { model: narrModel })}
+                </span>
+              )}
+            </div>
+            {narr ? (
+              <NarrationMd text={narr} />
+            ) : (
+              <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                <span className="flex gap-1">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                </span>
+                {thinking ? t("chat.thinking") : t("chat.explaining")}
+              </div>
+            )}
+          </div>
+        )}
+
+        {narrTried && !narrating && !narr && (
+          <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4 text-[13px] text-muted-foreground">
+            {t("chat.explainUnavailable")}
+          </div>
+        )}
       </div>
 
       {/* 6: relevant principles + 7: provenance (expandable) */}

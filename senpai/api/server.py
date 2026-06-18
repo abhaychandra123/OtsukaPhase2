@@ -21,16 +21,18 @@ Design contract (kept stable for the frontend):
 """
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import asdict
 from datetime import date
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from senpai import config
-from senpai.coach.review import review_note
+from senpai.coach.review import format_review, narrate_review, narration_prompt, review_note
 from senpai.data import store
 from senpai.health.flags import deal_flags
 from senpai.health.scoring import score_deal
@@ -229,6 +231,13 @@ def deal_detail(deal_id: str):
 class CoachRequest(BaseModel):
     note: str
     deal_id: str | None = None
+    narrate: bool = False
+
+
+# Optional LLM narration. Off unless SENPAI_USE_LLM is truthy, so the coach
+# stays deterministic by default; when on, the served model only *rephrases*
+# the deterministic findings (never adds facts), with fallback baked in.
+USE_LLM = os.environ.get("SENPAI_USE_LLM", "0").lower() not in ("0", "false", "", "no")
 
 
 @app.post("/api/coach/review")
@@ -236,12 +245,80 @@ def coach_review(req: CoachRequest):
     deal = store.get_deal(req.deal_id) if req.deal_id else None
     acts = store.activities_for_deal(req.deal_id) if deal else None
     r = review_note(req.note, deal=deal, notes=acts, report=None)
+
+    narration = None
+    llm_model = None
+    if USE_LLM and req.narrate:
+        out = narrate_review(r, use_llm=True)
+        # narrate_review falls back to the deterministic render on any model
+        # failure; only treat it as live narration when it actually differs.
+        if out and out.strip() != format_review(r).strip():
+            narration = out
+            llm_model = config.MODEL
+
     return {
         "teach_note": TEACH_NOTE,
         "sections": COACH_SECTIONS,
         "used_deal": r.used_deal,
         "result": {s["key"]: getattr(r, s["key"]) for s in COACH_SECTIONS},
+        "narration": narration,
+        "llm_model": llm_model,
     }
+
+
+def _sse(obj: dict) -> str:
+    """Encode one Server-Sent Event frame."""
+    return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+
+
+@app.post("/api/coach/narrate")
+def coach_narrate(req: CoachRequest):
+    """Stream the senior commentary token-by-token (SSE) straight from the
+    vLLM/OpenAI endpoint. The deterministic Review Coach is computed first and is
+    unchanged; this only streams the optional rephrasing. Event types:
+      start | thinking | delta | done | fallback | unavailable | error
+    The frontend renders deltas live and falls back to the deterministic card on
+    `fallback`/`unavailable`/`error`."""
+    if not USE_LLM:
+        return StreamingResponse(
+            iter([_sse({"type": "unavailable", "reason": "llm_disabled"})]),
+            media_type="text/event-stream",
+        )
+
+    deal = store.get_deal(req.deal_id) if req.deal_id else None
+    acts = store.activities_for_deal(req.deal_id) if deal else None
+    r = review_note(req.note, deal=deal, notes=acts, report=None)
+
+    def gen():
+        from senpai.llm import client
+        yield _sse({"type": "start", "model": config.MODEL})
+        full, emitted, last_think = "", 0, 0
+        try:
+            for piece in client.stream_complete([{"role": "user", "content": narration_prompt(r)}]):
+                full += piece
+                if "</think>" in full:                         # reasoning done → answer region
+                    answer = full.split("</think>", 1)[1].lstrip("\n ")
+                elif "<think>" in full:                        # still reasoning
+                    answer = ""
+                else:                                          # model emitted no <think> at all
+                    answer = full
+                if answer:
+                    new = answer[emitted:]
+                    if new:
+                        emitted += len(new)
+                        yield _sse({"type": "delta", "text": new})
+                elif len(full) - last_think >= 48:             # throttled progress while thinking
+                    last_think = len(full)
+                    yield _sse({"type": "thinking", "chars": len(full)})
+            yield _sse({"type": "done", "model": config.MODEL} if emitted else {"type": "fallback"})
+        except Exception:  # noqa: BLE001 — server down/timeout → client falls back
+            yield _sse({"type": "error", "reason": "unreachable"})
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/api/coach/examples")
