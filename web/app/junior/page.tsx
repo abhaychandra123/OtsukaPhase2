@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText, GraduationCap, Library, type LucideIcon, Target, Users } from "lucide-react";
+import { ArrowRight, FileText, Flame, GraduationCap, Library, MessagesSquare, type LucideIcon, Target, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
-import { principleText } from "@/lib/content-i18n";
+import { principleText, repText, departmentText, tagText } from "@/lib/content-i18n";
 import { cn } from "@/lib/utils";
-import type { Principle } from "@/lib/types";
+import type { GrowthData, Principle } from "@/lib/types";
 import { SourceChips } from "@/components/source-chip";
 import { ConfidenceBadge } from "@/components/confidence-badge";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,17 @@ export default function JuniorHome() {
   const { t, lang } = useT();
   const [principles, setPrinciples] = useState<Principle[]>([]);
   const [counts, setCounts] = useState({ approved: 0, items: 0, two: 0 });
+  const [profile, setProfile] = useState<GrowthData | null>(null);
 
   useEffect(() => {
-    Promise.all([api.principles(), api.items()]).then(([p, it]) => {
+    Promise.all([api.principles(), api.items(), api.growth()]).then(([p, it, gr]) => {
       setPrinciples(p.data.principles);
       setCounts({
         approved: p.data.counts.approved ?? 0,
         two: p.data.counts.two_source ?? 0,
         items: it.data.counts.approved ?? 0,
       });
+      setProfile(gr.data.growth);
     });
   }, []);
 
@@ -50,6 +52,40 @@ export default function JuniorHome() {
         <h1 className="max-w-2xl text-[26px] font-semibold leading-tight tracking-tight md:text-[30px]">{t("jhome.title")}</h1>
         <p className="max-w-2xl text-[14px] leading-relaxed text-muted-foreground">{t("jhome.lead")}</p>
       </header>
+
+      {/* Profile strip */}
+      {profile && (
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <span className="font-jp text-[14px] font-semibold text-foreground">
+              {repText(lang, profile.rep.name).text}
+            </span>
+            <span className="text-muted-foreground/40 select-none">·</span>
+            <span className="font-jp text-[13px] text-muted-foreground">
+              {departmentText(lang, profile.rep.department).text}
+            </span>
+            {profile.rep.specialty_tags.map((tg) => (
+              <Badge key={tg} variant="default" className="text-[10.5px]">
+                #{tagText(lang, tg).text}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <MessagesSquare className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                <span className="font-semibold text-foreground">{profile.totals.reviews}</span>
+                {" "}{t("growth.journey.reviews")}
+              </span>
+            </span>
+            <span className="text-muted-foreground/30 select-none">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <Flame className="h-3.5 w-3.5 shrink-0 text-band-yellow" />
+              <span>{t("growth.weeks", { n: String(profile.totals.streak_weeks) })}</span>
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Quick actions */}
       <section className="space-y-3">

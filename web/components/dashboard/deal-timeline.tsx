@@ -27,14 +27,15 @@ function eventLabel(
   return t(`timeline.type.${code}`);
 }
 
-export function DealTimeline({ events }: { events: TimelineEvent[] }) {
+export function DealTimeline({ events }: { events?: TimelineEvent[] | null }) {
   const { t } = useT();
-  if (!events.length) {
+  const timelineEvents = events ?? [];
+  if (!timelineEvents.length) {
     return <p className="text-[13px] text-muted-foreground">{t("timeline.empty")}</p>;
   }
   return (
     <ol className="relative space-y-4 border-l border-border pl-6">
-      {events.map((ev, i) => {
+      {timelineEvents.map((ev, i) => {
         const Icon = ICONS[ev.kind];
         const gap = ev.kind === "gap";
         const tone =

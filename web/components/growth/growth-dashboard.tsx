@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BookMarked,
   Flame,
@@ -11,7 +10,6 @@ import {
   Sparkles,
   Star,
 } from "lucide-react";
-import { api } from "@/lib/api";
 import type { GrowthResponse } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -56,59 +54,29 @@ function Stars({ n }: { n: number }) {
 
 export function GrowthDashboard({ initial }: { initial: GrowthResponse }) {
   const { t, lang } = useT();
-  const [data, setData] = useState<GrowthResponse>(initial);
-  const [rep, setRep] = useState<string>(initial.growth.rep.employee_id);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (rep === data.growth.rep.employee_id) return;
-    let alive = true;
-    setLoading(true);
-    api.growth(rep).then(({ data: d }) => {
-      if (alive) { setData(d); setLoading(false); }
-    });
-    return () => { alive = false; };
-  }, [rep, data.growth.rep.employee_id]);
-
-  const g = data.growth;
+  const g = initial.growth;
   const maxMonth = Math.max(1, ...g.monthly.map((m) => m.count));
 
   return (
-    <div className={cn("space-y-6 transition-opacity", loading && "opacity-60")}>
-      {/* who am I + selector */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-navy text-white">
-            <GraduationCap className="h-5 w-5" />
-          </span>
-          <div>
-            <div className="font-jp text-[15px] font-semibold text-foreground">
-              {repText(lang, g.rep.name).text}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-              <span className="font-jp">
-                {departmentText(lang, g.rep.department).text}
-              </span>
-              {g.rep.specialty_tags.map((tg) => (
-                <Badge key={tg} variant="default">#{tagText(lang, tg).text}</Badge>
-              ))}
-            </div>
+    <div className="space-y-6">
+      {/* identity card */}
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-navy text-white">
+          <GraduationCap className="h-5 w-5" />
+        </span>
+        <div>
+          <div className="font-jp text-[15px] font-semibold text-foreground">
+            {repText(lang, g.rep.name).text}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className="font-jp">
+              {departmentText(lang, g.rep.department).text}
+            </span>
+            {g.rep.specialty_tags.map((tg) => (
+              <Badge key={tg} variant="default">#{tagText(lang, tg).text}</Badge>
+            ))}
           </div>
         </div>
-        <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-          {t("growth.me")}
-          <select
-            value={rep}
-            onChange={(e) => setRep(e.target.value)}
-            className="h-8 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {data.juniors.map((j) => (
-              <option key={j.employee_id} value={j.employee_id}>
-                {repText(lang, j.name).text}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {/* headline stats */}

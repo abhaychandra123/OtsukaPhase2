@@ -86,11 +86,29 @@ def simple_complete(messages: list[dict], temperature: float = 0.3,
     return content.strip()
 
 
+def _delta_reasoning(delta) -> str | None:
+    """Some OpenAI-compatible servers (llama.cpp's llama-server, DeepSeek, vLLM
+    with `--reasoning-parser`) split chain-of-thought into a separate
+    `reasoning_content` field and leave `content`/`delta.content` empty until the
+    answer begins. The openai SDK exposes such non-standard fields on
+    `model_extra`; older builds attach them directly. Check both."""
+    rc = getattr(delta, "reasoning_content", None)
+    if rc is None:
+        extra = getattr(delta, "model_extra", None)
+        if extra:
+            rc = extra.get("reasoning_content")
+    return rc
+
+
 def stream_complete(messages: list[dict], temperature: float = 0.3,
                     max_tokens: int | None = None) -> Iterator[str]:
-    """Stream a completion token-by-token from the OpenAI-compatible server
-    (vLLM supports SSE streaming natively). Yields raw content deltas, including
-    any `<think>` reasoning — callers decide how to present the thinking phase.
+    """Stream a completion token-by-token from the OpenAI-compatible server.
+    Yields a `<think>…</think>` reasoning span (when the backend emits one)
+    followed by the answer deltas — a single text stream callers can split on
+    `</think>`. Backends that inline `<think>` in `content` (vLLM/ollama) flow
+    straight through unchanged; backends that put reasoning in a separate
+    `reasoning_content` field (llama.cpp) are reconstructed into the same shape,
+    so the thinking phase stays visible instead of streaming nothing.
     Raises on transport error so callers can fall back."""
     try:
         stream = client.chat.completions.create(
@@ -103,11 +121,23 @@ def stream_complete(messages: list[dict], temperature: float = 0.3,
             model=config.FALLBACK_MODEL, messages=messages, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS, stream=True,
         )
+    think_open = think_closed = False
     for chunk in stream:
         if not chunk.choices:
             continue
         delta = chunk.choices[0].delta
-        if delta and delta.content:
+        if not delta:
+            continue
+        reasoning = _delta_reasoning(delta)
+        if reasoning:
+            if not think_open:
+                think_open = True
+                yield "<think>"
+            yield reasoning
+        if delta.content:
+            if think_open and not think_closed:
+                think_closed = True
+                yield "</think>"
             yield delta.content
 
 

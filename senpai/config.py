@@ -22,10 +22,30 @@ import os
 from datetime import date
 from pathlib import Path
 
+def _load_dotenv() -> None:
+    """Load repo-root .env into os.environ (stdlib only; never overrides an
+    already-set var). config is the first senpai import in every entrypoint, so
+    doing this here means BASE_URL/MODEL/etc. from .env take effect everywhere —
+    including the FastAPI bridge, which otherwise read only process env and
+    silently fell back to the defaults below."""
+    env = Path(__file__).resolve().parent.parent / ".env"
+    if not env.exists():
+        return
+    for raw in env.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
+
 # --- Model server -----------------------------------------------------------
-# Any OpenAI-compatible endpoint works here: vLLM (`vllm serve … --port 8765`)
-# is the production target; ollama's `/v1` and the Phase-1 demo server are
-# drop-in compatible too. Only this URL + MODEL change between backends.
+# Any OpenAI-compatible endpoint works here: vLLM (`vllm serve … --port 8765`),
+# llama.cpp's `llama-server`, and ollama's `/v1` are all drop-in compatible.
+# Only this URL + MODEL change between backends; both come from the repo-root
+# .env (loaded above) or process env.
 BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8765/v1")
 FALLBACK_BASE_URL = os.environ.get("FALLBACK_BASE_URL", "http://100.101.186.29:8766/v1")
 MODEL = os.environ.get("MODEL", "exp3")
