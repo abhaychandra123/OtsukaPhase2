@@ -70,6 +70,10 @@ def _env_int(name: str, default: int) -> int:
 # --- Inference tunables -----------------------------------------------------
 LLM_TIMEOUT = _env_float("LLM_TIMEOUT", 120.0)        # seconds, per request
 LLM_MAX_TOKENS = _env_int("LLM_MAX_TOKENS", 1024)
+# Senior Commentary is meant to be a *short* conversational read, not long-form
+# reasoning. Cap it tightly so latency stays low (with thinking disabled, wall
+# time scales ~linearly with output length on the shared GPU). ~110–150 words.
+LLM_NARRATE_MAX_TOKENS = _env_int("LLM_NARRATE_MAX_TOKENS", 260)
 LLM_STREAM = os.environ.get("LLM_STREAM", "1").lower() not in ("0", "false", "no", "")
 
 # --- Paths ------------------------------------------------------------------

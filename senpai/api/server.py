@@ -33,9 +33,11 @@ from pydantic import BaseModel
 
 from senpai import config
 from senpai.coach.cases import find_similar_cases
+from senpai.coach.context import build_commentary_context
 from senpai.coaching import coaching_workspace
 from senpai.growth import junior_reps, rep_growth
 from senpai.coach.review import (
+    commentary_prompt,
     format_review,
     narrate_review,
     narration_prompt,
@@ -349,12 +351,17 @@ def _sse(obj: dict) -> str:
 
 @app.post("/api/coach/narrate")
 def coach_narrate(req: CoachRequest):
-    """Stream the senior commentary token-by-token (SSE) straight from the
-    vLLM/OpenAI endpoint. The deterministic Review Coach is computed first and is
-    unchanged; this only streams the optional rephrasing. Event types:
-      start | thinking | delta | done | fallback | unavailable | error
-    The frontend renders deltas live and falls back to the deterministic card on
-    `fallback`/`unavailable`/`error`."""
+    """Stream the Senior Commentary token-by-token (SSE).
+
+    This is an experienced rep's *interpretation* layered on the deterministic
+    coach — grounded in a retrieved business-context package (customer, deal
+    health, activity, history, similar cases), NOT a restatement of the lenses.
+    Reasoning is disabled (low latency) and the request is pinned to the primary
+    GGUF endpoint — on any failure we emit an explicit `unavailable`, never a
+    silent switch to another model. Event types:
+      start | context | thinking | delta | done | unavailable
+    The frontend renders deltas live and shows "Senior commentary unavailable" on
+    `unavailable`."""
     if not USE_LLM:
         return StreamingResponse(
             iter([_sse({"type": "unavailable", "reason": "llm_disabled"})]),
@@ -364,33 +371,46 @@ def coach_narrate(req: CoachRequest):
     deal = store.get_deal(req.deal_id) if req.deal_id else None
     acts = store.activities_for_deal(req.deal_id) if deal else None
     r = review_note(req.note, deal=deal, notes=acts, report=None)
-
-    prompt = narration_prompt_en(r) if req.lang == "en" else narration_prompt(r)
+    context_text, ctx_meta = build_commentary_context(
+        req.note, deal_id=req.deal_id, today=_today())
+    prompt = commentary_prompt(req.note, r, context_text,
+                               ctx_meta["has_customer_context"], lang=req.lang)
 
     def gen():
         from senpai.llm import client
-        yield _sse({"type": "start", "model": config.MODEL})
+        yield _sse({"type": "start", "model": config.MODEL,
+                    "endpoint": config.BASE_URL})
+        # Tell the UI what real records the read is grounded in (or that none matched).
+        yield _sse({"type": "context", "grounded": ctx_meta["has_customer_context"],
+                    "customer": ctx_meta["customer"], "deal_id": ctx_meta["deal_id"]})
         full, emitted, last_think = "", 0, 0
         try:
-            for piece in client.stream_complete([{"role": "user", "content": prompt}]):
+            for piece in client.stream_complete(
+                [{"role": "user", "content": prompt}],
+                temperature=0.5, max_tokens=config.LLM_NARRATE_MAX_TOKENS,
+                no_think=True, allow_fallback=False,
+            ):
                 full += piece
-                if "</think>" in full:                         # reasoning done → answer region
+                if "</think>" in full:                         # strip any echoed think block
                     answer = full.split("</think>", 1)[1].lstrip("\n ")
-                elif "<think>" in full:                        # still reasoning
+                elif "<think>" in full:
                     answer = ""
-                else:                                          # model emitted no <think> at all
+                else:
                     answer = full
                 if answer:
                     new = answer[emitted:]
                     if new:
                         emitted += len(new)
                         yield _sse({"type": "delta", "text": new})
-                elif len(full) - last_think >= 48:             # throttled progress while thinking
+                elif len(full) - last_think >= 48:
                     last_think = len(full)
                     yield _sse({"type": "thinking", "chars": len(full)})
-            yield _sse({"type": "done", "model": config.MODEL} if emitted else {"type": "fallback"})
-        except Exception:  # noqa: BLE001 — server down/timeout → client falls back
-            yield _sse({"type": "error", "reason": "unreachable"})
+            if emitted:
+                yield _sse({"type": "done", "model": config.MODEL})
+            else:
+                yield _sse({"type": "unavailable", "reason": "empty"})
+        except Exception:  # noqa: BLE001 — primary endpoint down/timeout (no fallback)
+            yield _sse({"type": "unavailable", "reason": "unreachable"})
 
     return StreamingResponse(
         gen(),

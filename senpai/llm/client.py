@@ -64,21 +64,40 @@ def _parse_xlam(content: str | None):
     return calls or None
 
 
+# Prefilling the assistant turn with an already-closed, empty think block makes
+# the reasoning distill skip its <think> phase and answer immediately. This is
+# the only lever that works on the current llama-server build — the model's chat
+# template has no `enable_thinking` var and ignores `reasoning_effort`/`/no_think`.
+# Cutting the (long) reasoning phase is the dominant latency win for short
+# conversational outputs like Senior Commentary.
+_NO_THINK_PREFILL = {"role": "assistant", "content": "<think>\n\n</think>\n\n"}
+
+
+def _prep(messages: list[dict], no_think: bool) -> list[dict]:
+    return [*messages, _NO_THINK_PREFILL] if no_think else messages
+
+
 def simple_complete(messages: list[dict], temperature: float = 0.3,
-                    max_tokens: int | None = None) -> str:
+                    max_tokens: int | None = None, *, no_think: bool = False,
+                    allow_fallback: bool = True) -> str:
     """One plain completion, no tools. Raises on transport error so callers
     (e.g. narration) can fall back to a templated string. Strips any
     `<think>...</think>` reasoning span (the served model is a reasoning
-    distill) so callers get only the final coaching text."""
+    distill) so callers get only the final coaching text. `no_think` disables the
+    reasoning phase (low latency); `allow_fallback=False` pins the request to the
+    primary endpoint and re-raises instead of silently switching models."""
+    msgs = _prep(messages, no_think)
     try:
         resp = client.chat.completions.create(
-            model=config.MODEL, messages=messages, temperature=temperature,
+            model=config.MODEL, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS,
         )
     except Exception as e:
+        if not allow_fallback:
+            raise
         print(f"⚠️ Primary server failed ({e}). Trying fallback...")
         resp = fallback_client.chat.completions.create(
-            model=config.FALLBACK_MODEL, messages=messages, temperature=temperature,
+            model=config.FALLBACK_MODEL, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS,
         )
     content = resp.choices[0].message.content or ""
@@ -101,7 +120,8 @@ def _delta_reasoning(delta) -> str | None:
 
 
 def stream_complete(messages: list[dict], temperature: float = 0.3,
-                    max_tokens: int | None = None) -> Iterator[str]:
+                    max_tokens: int | None = None, *, no_think: bool = False,
+                    allow_fallback: bool = True) -> Iterator[str]:
     """Stream a completion token-by-token from the OpenAI-compatible server.
     Yields a `<think>…</think>` reasoning span (when the backend emits one)
     followed by the answer deltas — a single text stream callers can split on
@@ -109,16 +129,21 @@ def stream_complete(messages: list[dict], temperature: float = 0.3,
     straight through unchanged; backends that put reasoning in a separate
     `reasoning_content` field (llama.cpp) are reconstructed into the same shape,
     so the thinking phase stays visible instead of streaming nothing.
+    `no_think` disables reasoning for low latency; `allow_fallback=False` pins the
+    request to the primary endpoint and re-raises instead of switching models.
     Raises on transport error so callers can fall back."""
+    msgs = _prep(messages, no_think)
     try:
         stream = client.chat.completions.create(
-            model=config.MODEL, messages=messages, temperature=temperature,
+            model=config.MODEL, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS, stream=True,
         )
     except Exception as e:
+        if not allow_fallback:
+            raise
         print(f"⚠️ Primary server failed ({e}). Trying fallback stream...")
         stream = fallback_client.chat.completions.create(
-            model=config.FALLBACK_MODEL, messages=messages, temperature=temperature,
+            model=config.FALLBACK_MODEL, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS, stream=True,
         )
     think_open = think_closed = False

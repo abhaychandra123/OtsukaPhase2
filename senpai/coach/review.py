@@ -305,6 +305,63 @@ def narration_prompt_en(r: CoachReview) -> str:
     )
 
 
+def commentary_prompt(note: str, r: CoachReview, context_text: str,
+                      has_context: bool, lang: str = "ja") -> str:
+    """Senior Commentary prompt — NOT a restatement of the six lenses.
+
+    The deterministic coach already lists what's missing / risky. This asks the
+    model for an *experienced rep's interpretation* layered on top of the real
+    business context: what is actually happening, what a senior would focus on,
+    the likely customer dynamics, and one or two concrete moves. Strictly
+    grounded — it must use only the supplied context and never invent customer
+    facts. Short and conversational, to keep latency low."""
+    # The coach findings are given only so the model AVOIDS repeating them.
+    notice = "、".join(r.observations[:4]) if lang != "en" else "; ".join(r.observations[:4])
+    risks = "、".join(r.risks[:4]) if lang != "en" else "; ".join(r.risks[:4])
+
+    if lang == "en":
+        return (
+            "You are an experienced sales manager giving a junior rep your honest "
+            "read on a situation. Do NOT summarize or repeat the checklist — the "
+            "rep already has it. Add senior JUDGMENT grounded in the context.\n\n"
+            "Write in natural, conversational English under exactly these four "
+            "short headings (1–2 sentences each):\n"
+            "**Situation Summary** — what is actually happening here?\n"
+            "**What an Experienced Rep Would Focus On** — specific to THIS deal, "
+            "not generic advice.\n"
+            "**Likely Customer Dynamics** — what may be happening behind the "
+            "scenes (internal evaluation, budget cycle, competing priorities).\n"
+            "**Practical Advice** — one or two concrete next actions.\n\n"
+            "Rules: Ground every statement in the CONTEXT facts; cite the real "
+            "numbers (days inactive, rank, amount) where they matter. NEVER invent "
+            "customer facts — if the context says no customer was found, say your "
+            "read is based on the note alone. Be concise: ~110–150 words total, no "
+            "preamble.\n\n"
+            f"CONTEXT (from records):\n{context_text}\n\n"
+            f"COACH ALREADY TOLD THE REP (do not repeat): notices — {notice}; "
+            f"risks — {risks}\n\n"
+            f"REP'S NOTE:\n{note}"
+        )
+    return (
+        "あなたは経験豊富な営業マネージャーです。後輩に、この状況をどう読むかを"
+        "率直に伝えてください。チェックリストの要約や繰り返しはしないこと（後輩は"
+        "既に持っています）。文脈に基づく『先輩の判断』を加えてください。\n\n"
+        "自然な会話調の日本語で、次の4つの短い見出し（各1〜2文）で書いてください:\n"
+        "**状況の要約** — 実際に何が起きているか？\n"
+        "**経験豊富な営業なら何に注目するか** — 一般論ではなく、この案件に即して。\n"
+        "**顧客側で起きていそうな力学** — 社内検討・予算サイクル・優先順位など、"
+        "裏で何が起きていそうか。\n"
+        "**実践的なアドバイス** — 具体的な次の一手を1〜2個。\n\n"
+        "ルール: すべての記述を文脈の事実に基づかせ、重要な数字（停滞日数・ランク・"
+        "金額）を引用すること。顧客に関する事実を創作しないこと。文脈に顧客が"
+        "見つからない場合は、メモのみに基づく読みだと明記すること。簡潔に、前置きなしで"
+        "合計150〜220文字程度。\n\n"
+        f"文脈（記録より）:\n{context_text}\n\n"
+        f"コーチが既に伝えた内容（繰り返さない）: 気づき — {notice}／リスク — {risks}\n\n"
+        f"後輩のメモ:\n{note}"
+    )
+
+
 def narrate_review(r: CoachReview, use_llm: bool = True) -> str:
     """Optionally let the model rephrase the SAME findings into smoother coaching
     language. The model is forbidden to add facts or pick one answer; on any
