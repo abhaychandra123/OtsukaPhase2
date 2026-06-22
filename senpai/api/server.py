@@ -585,6 +585,8 @@ class ResearchBundle:
     target: str
     resolution: dict
     customer: dict | None = None
+    active_deal_id: str | None = None
+    active_deal: dict | None = None
     deals: list[dict] = field(default_factory=list)
     activities: list[dict] = field(default_factory=list)
     environment: dict | None = None
@@ -604,7 +606,16 @@ _RESEARCH_PREFIXES = [
     r"^\s*find\s+out\s+about\s+",
     r"^\s*what\s+should\s+i\s+know\s+about\s+",
     r"^\s*use\s+web_search\s+and\s+tell\s+me\s+about\s+",
+    r"^\s*switch\s+to\s+",
 ]
+
+_RESEARCH_CONTEXTS: dict[str, ResearchBundle] = {}
+_DEAL_ID_RE = re.compile(r"\bD\d{3}\b", flags=re.IGNORECASE)
+_FOLLOWUP_RE = re.compile(
+    r"^\s*(what|who|when|why|how|which|are|is|do|does|should)\b|"
+    r"\b(risk|risks|decision maker|last meeting|products?|next|happened|activity|activities)\b",
+    flags=re.IGNORECASE,
+)
 
 
 def _research_target(message: str) -> str:
@@ -612,6 +623,22 @@ def _research_target(message: str) -> str:
     for pat in _RESEARCH_PREFIXES:
         target = re.sub(pat, "", target, flags=re.IGNORECASE)
     return target.strip(" \t\r\n?？。.")
+
+
+def _deal_id_in_text(message: str) -> str | None:
+    m = _DEAL_ID_RE.search(message or "")
+    return m.group(0).upper() if m else None
+
+
+def _is_followup(message: str, has_context: bool) -> bool:
+    if not has_context or _deal_id_in_text(message):
+        return False
+    text = (message or "").strip()
+    if not text or len(text) > 220:
+        return False
+    if any(re.search(pat, text, flags=re.IGNORECASE) for pat in _RESEARCH_PREFIXES):
+        return False
+    return bool(_FOLLOWUP_RE.search(text))
 
 
 # Japanese research cues. Kept narrow on purpose: paired with a customer-resolution
@@ -688,6 +715,62 @@ def _products_for_deals(deals: list[dict]) -> list[dict]:
     return products
 
 
+def _deal_resolution(deal: dict) -> dict:
+    c = store.get_customer(deal["customer_id"])
+    return {
+        "status": "resolved",
+        "query": deal["deal_id"],
+        "customer": _public_customer(c),
+        "candidates": [],
+    }
+
+
+def _build_deal_context_bundle(message: str, target: str, deal: dict) -> ResearchBundle:
+    customer = store.get_customer(deal["customer_id"])
+    raw_activities = store.activities_for_deal(deal["deal_id"])
+    bundle = ResearchBundle(
+        query=message,
+        target=target,
+        resolution=_deal_resolution(deal),
+        customer=_public_customer(customer),
+        active_deal_id=deal["deal_id"],
+        active_deal=_deal_summary(deal),
+        deals=[_deal_summary(deal)],
+        activities=[_activity_summary(a) for a in raw_activities[:20]],
+        environment=store.get_environment(deal["customer_id"]),
+        products=_products_for_deals([deal]),
+        similar_deals=[_deal_summary(d) for d in find_similar_deals(
+            customer_id=deal["customer_id"],
+            industry=(customer or {}).get("industry", ""),
+        )[:3]],
+    )
+    bundle.provenance.extend([
+        {"source": "active_deal_context", "priority": 1, "deal_id": deal["deal_id"]},
+        {"source": "internal_records", "priority": 1, "status": "found"},
+        {"source": "deals", "priority": 2, "count": 1},
+        {"source": "activities", "priority": 3, "count": len(bundle.activities),
+         "truncated": len(raw_activities) > len(bundle.activities)},
+        {"source": "environment", "priority": 4,
+         "status": "found" if bundle.environment else "not_found"},
+    ])
+    return bundle
+
+
+def _open_deals(deals: list[dict]) -> list[dict]:
+    return [d for d in deals if config.is_open_rank(d.get("order_rank"))]
+
+
+def _deal_choices_answer(deals: list[dict]) -> str:
+    lines = ["この顧客にはアクティブな案件が複数あります。どの案件について調べるか、案件IDで指定してください。"]
+    for d in sorted(deals, key=lambda x: x.get("total_order_amount", 0), reverse=True):
+        s = _deal_summary(d)
+        lines.append(
+            f"- {s['deal_id']}: {s['customer']} / {s['stage']} / "
+            f"¥{s['amount']:,} / {s['product_category']} / health={s['health']['band']}"
+        )
+    return "\n".join(lines)
+
+
 def _source_event(key: str, label: str, status: str, count: int | None = None,
                   detail: str = "") -> str:
     obj = {"type": "source", "key": key, "label": label, "status": status}
@@ -748,7 +831,7 @@ def _ambiguity_answer(candidates: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def research_stream(req: ChatRequest):
+def _legacy_research_stream(req: ChatRequest):
     target = _research_target(req.message)
     yield _sse({"type": "start", "model": config.MODEL,
                 "endpoint": config.BASE_URL, "role": "research"})
@@ -822,6 +905,157 @@ def research_stream(req: ChatRequest):
         yield _sse({"type": "done", "model": config.MODEL})
 
 
+def _emit_bundle_sources(bundle: ResearchBundle, cached: bool = False):
+    yield _source_event("internal_records", "Internal Records", "found", count=1,
+                        detail="cached" if cached else "")
+    yield _source_event("deals", "Deals", "found" if bundle.deals else "not_found",
+                        count=len(bundle.deals), detail="cached" if cached else "")
+    yield _source_event("activities", "Activities",
+                        "found" if bundle.activities else "not_found",
+                        count=len(bundle.activities), detail="cached" if cached else "")
+    yield _source_event("environment", "Environment",
+                        "found" if bundle.environment else "not_found",
+                        detail="cached" if cached else "")
+    yield _source_event("web_search", "Web Search", "skipped",
+                        detail="active_deal_context" if bundle.active_deal_id else "internal_record_found")
+
+
+def _summarize_research_bundle(bundle: ResearchBundle):
+    try:
+        from senpai.llm.client import stream_complete
+        text = ""
+        for piece in stream_complete(
+            [{"role": "user", "content": _research_summary_prompt(bundle)}],
+            temperature=0.2,
+            max_tokens=config.LLM_MAX_TOKENS,
+            no_think=True,
+            allow_fallback=False,
+        ):
+            text += piece
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        yield _sse({"type": "answer", "text": text or "リサーチ結果を生成できませんでした。"})
+        yield _sse({"type": "done", "model": config.MODEL})
+    except Exception:  # noqa: BLE001 - research must not silently use fallback
+        yield _sse({"type": "unavailable", "reason": "llm_unreachable"})
+        yield _sse({"type": "done", "model": config.MODEL})
+
+
+def research_stream(req: ChatRequest):
+    conversation_id = (getattr(req, "conversation_id", None) or "default").strip() or "default"
+    cached_bundle = _RESEARCH_CONTEXTS.get(conversation_id)
+    target = _research_target(req.message)
+    deal_id = _deal_id_in_text(req.message)
+    use_cached = _is_followup(req.message, bool(cached_bundle))
+
+    yield _sse({"type": "start", "model": config.MODEL,
+                "endpoint": config.BASE_URL, "role": "research",
+                "conversation_id": conversation_id})
+
+    if use_cached and cached_bundle:
+        cached_bundle.query = req.message
+        yield _sse({"type": "context", "status": "active",
+                    "conversation_id": conversation_id,
+                    "deal_id": cached_bundle.active_deal_id,
+                    "customer": cached_bundle.customer,
+                    "cached": True})
+        for ev in _emit_bundle_sources(cached_bundle, cached=True):
+            yield ev
+        yield from _summarize_research_bundle(cached_bundle)
+        return
+
+    if deal_id:
+        deal = store.get_deal(deal_id)
+        if not deal:
+            yield _sse({"type": "resolve", "status": "not_found", "query": deal_id,
+                        "customer": None, "candidates": []})
+            yield _source_event("internal_records", "Internal Records", "not_found")
+            yield _sse({"type": "unavailable", "reason": "deal_not_found"})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+        bundle = _build_deal_context_bundle(req.message, deal_id, deal)
+        _RESEARCH_CONTEXTS[conversation_id] = bundle
+        yield _sse({"type": "resolve", **bundle.resolution})
+        yield _sse({"type": "context", "status": "active",
+                    "conversation_id": conversation_id, "deal_id": deal_id,
+                    "customer": bundle.customer, "cached": False})
+        for ev in _emit_bundle_sources(bundle):
+            yield ev
+        yield from _summarize_research_bundle(bundle)
+        return
+
+    resolution = store.resolve_customer_detailed(target)
+    res_obj = resolution.to_dict()
+    yield _sse({"type": "resolve", **res_obj})
+
+    if resolution.status == "ambiguous":
+        yield _source_event("internal_records", "Internal Records", "ambiguous",
+                            count=len(res_obj["candidates"]))
+        yield _source_event("deals", "Deals", "skipped")
+        yield _source_event("activities", "Activities", "skipped")
+        yield _source_event("environment", "Environment", "skipped")
+        yield _source_event("web_search", "Web Search", "skipped",
+                            detail="ambiguous_customer")
+        yield _sse({"type": "answer", "text": _ambiguity_answer(res_obj["candidates"])})
+        yield _sse({"type": "done", "model": config.MODEL})
+        return
+
+    if resolution.status == "resolved" and resolution.customer:
+        raw_deals = store.deals_for_customer(resolution.customer["customer_id"])
+        active_deals = _open_deals(raw_deals)
+        if len(active_deals) > 1:
+            yield _source_event("internal_records", "Internal Records", "found", count=1)
+            yield _source_event("deals", "Deals", "ambiguous", count=len(active_deals),
+                                detail="multiple_active_deals")
+            yield _source_event("activities", "Activities", "skipped")
+            yield _source_event("environment", "Environment", "skipped")
+            yield _source_event("web_search", "Web Search", "skipped",
+                                detail="select_deal_first")
+            yield _sse({"type": "deal_choices", "status": "ambiguous",
+                        "deals": [_deal_summary(d) for d in active_deals]})
+            yield _sse({"type": "answer", "text": _deal_choices_answer(active_deals)})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+        if len(active_deals) == 1:
+            bundle = _build_deal_context_bundle(req.message, target, active_deals[0])
+            _RESEARCH_CONTEXTS[conversation_id] = bundle
+            yield _sse({"type": "context", "status": "active",
+                        "conversation_id": conversation_id,
+                        "deal_id": bundle.active_deal_id,
+                        "customer": bundle.customer,
+                        "cached": False})
+            for ev in _emit_bundle_sources(bundle):
+                yield ev
+            yield from _summarize_research_bundle(bundle)
+            return
+
+    bundle = _build_research_bundle(req.message, target, resolution)
+
+    if resolution.status == "resolved":
+        for ev in _emit_bundle_sources(bundle):
+            yield ev
+    else:
+        yield _source_event("internal_records", "Internal Records", "not_found")
+        yield _source_event("deals", "Deals", "skipped")
+        yield _source_event("activities", "Activities", "skipped")
+        yield _source_event("environment", "Environment", "skipped")
+        web = web_search_typed(f"{target} company overview latest news")
+        bundle.web = web
+        bundle.provenance.append({"source": "web_search", "priority": 2,
+                                  "status": web.get("status"), "query": web.get("query")})
+        yield _sse({"type": "web", **web})
+        yield _source_event("web_search", "Web Search",
+                            "found" if web.get("status") == "found" else "error",
+                            count=len(web.get("results") or []),
+                            detail=web.get("reason", ""))
+        if web.get("status") != "found":
+            yield _sse({"type": "unavailable",
+                        "reason": "no_internal_record_and_web_unavailable"})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+
+    yield from _summarize_research_bundle(bundle)
+
+
 class ChatMessage(BaseModel):
     role: str       # "user" | "assistant"
     content: str
@@ -831,6 +1065,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []          # prior user/assistant turns (no system)
     role: str = "junior"                     # "junior" | "manager"
+    conversation_id: str | None = None
 
 
 @app.post("/api/chat")

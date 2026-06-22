@@ -146,6 +146,8 @@ export type ChatEvent =
   | { type: "start"; model?: string; endpoint?: string; role?: ChatRole }
   | { type: "tool"; name: string; args: string; result: string }
   | { type: "resolve"; status: "resolved" | "ambiguous" | "not_found"; query: string; customer?: unknown; candidates?: unknown[] }
+  | { type: "context"; status: "active"; conversation_id?: string; deal_id?: string | null; customer?: unknown; cached?: boolean }
+  | { type: "deal_choices"; status: "ambiguous"; deals: unknown[] }
   | { type: "source"; key: string; label: string; status: "found" | "not_found" | "ambiguous" | "skipped" | "error"; count?: number; detail?: string }
   | { type: "web"; status: "found" | "not_found" | "error"; query: string; answer?: string; results?: { title?: string; url?: string; content?: string }[]; live?: boolean; reason?: string }
   | { type: "delta"; text: string }
@@ -168,14 +170,14 @@ export async function chatStream(
   history: ChatTurn[],
   role: ChatRole,
   onEvent: (e: ChatEvent) => void,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; conversationId?: string },
 ): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, role }),
+      body: JSON.stringify({ message, history, role, conversation_id: opts?.conversationId }),
       cache: "no-store",
       signal: opts?.signal,
     });
