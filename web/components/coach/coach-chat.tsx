@@ -1250,3 +1250,4 @@ export function CoachChat({
     </div>
   );
 }
+// End of coach-chat.tsx
