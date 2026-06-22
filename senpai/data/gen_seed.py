@@ -10,11 +10,33 @@ real data later is a drop-in:
 Plus supplementary reference data that the SPR tables only *reference* (these would
 come from master data / other systems / knowledge mining, not the SPR export):
     reps.json · customers.json · products.json · environments.json · playbook.json
+    customer_aliases.json (English/romaji forms, auto-derived from the name parts)
+    rank_history.json (a normalized order-rank change log, one row per change, keyed
+        by deal_id — NOT part of the SPR `deals` table, which stays field-for-field)
 
 Content is Japanese (data) to match the Otsuka context; field names stay English.
-A handful of deals are deliberately authored as dead/dying — strong rank but stale,
-past their order date, no decision-maker — so the manager view flags real risk on
-first load (and the optimism-mismatch flag fires).
+
+Scale & shape
+-------------
+This is a *large, multi-year* synthetic pipeline (~150 customers, ~520 deals across
+FY2024 Q1 → FY2026 Q1). Deals fall into three dated cohorts so the live views stay
+bounded while history accumulates:
+  · live pipeline   — order_rank in OPEN_RANKS, dated near REFERENCE_DATE (drives the
+                      dashboard / scoring / Matsuda demo).
+  · historical won  — 1_Confirmed, spread across prior fiscal years, with real
+                      ordered_at/shipped_at so order & revenue history has depth.
+  · historical dead — 7_Lost / 8_Cancelled, spread across prior years.
+`store.open_deals()` filters to OPEN_RANKS, so the live pipeline the manager sees
+stays ~140 even though the corpus is 500+.
+
+Anchors (kept stable so tests + the Matsuda demo keep passing):
+  · Reps R01–R08 unchanged (esp. R05 = 伊藤翔). New reps are appended as R09+.
+  · D001–D004 are deliberately dead (strong rank but stale, order date passed, no
+    decision-maker) so the manager view flags real risk on first load.
+  · D001's customer is 有限会社村田印刷.
+  · Customer C28 is a 松田 account with a rich open pipeline (the Matsuda demo default).
+A full order-rank history (the Schema.md open question) is modelled in a *separate*
+`rank_history.json`, so the SPR `deals` table stays field-for-field with the schema.
 """
 from __future__ import annotations
 
@@ -46,6 +68,8 @@ def _fy(d_iso: str) -> tuple[int, int]:
 # ---------------------------------------------------------------------------
 
 # Reps are referenced from the SPR tables via sales_info.employee_id.
+# R01–R08 are load-bearing anchors (R05 = 伊藤翔 is asserted by tests) and must not
+# change; R09+ are appended to enrich the manager/coaching rollups and org structure.
 REPS = [
     {"employee_id": "R01", "name": "田中健太", "role": "senior",
      "department": "第一営業部", "division": "法人2課",
@@ -71,10 +95,63 @@ REPS = [
     {"employee_id": "R08", "name": "中村優子", "role": "senior",
      "department": "第二営業部", "division": "法人1課",
      "specialty_tags": ["クラウド", "提案"], "is_top_performer": False},
+    # --- appended reps (R09+) — more departments / divisions / specialties ----
+    {"employee_id": "R09", "name": "小林直樹", "role": "expert",
+     "department": "第三営業部", "division": "法人1課",
+     "specialty_tags": ["ストレージ", "サーバー"], "is_top_performer": True},
+    {"employee_id": "R10", "name": "加藤美穂", "role": "senior",
+     "department": "第三営業部", "division": "法人2課",
+     "specialty_tags": ["セキュリティ", "提案", "クロージング"], "is_top_performer": True},
+    {"employee_id": "R11", "name": "吉田亮", "role": "junior",
+     "department": "第三営業部", "division": "法人1課",
+     "specialty_tags": ["複合機", "ソフトウェア"], "is_top_performer": False},
+    {"employee_id": "R12", "name": "山田彩", "role": "junior",
+     "department": "第三営業部", "division": "法人2課",
+     "specialty_tags": ["ネットワーク"], "is_top_performer": False},
+    {"employee_id": "R13", "name": "佐々木拓海", "role": "expert",
+     "department": "第一営業部", "division": "法人1課",
+     "specialty_tags": ["クラウド", "バックアップ"], "is_top_performer": False},
+    {"employee_id": "R14", "name": "松本千尋", "role": "senior",
+     "department": "第一営業部", "division": "法人1課",
+     "specialty_tags": ["保守", "役務", "提案"], "is_top_performer": True},
+    {"employee_id": "R15", "name": "井上海斗", "role": "junior",
+     "department": "第二営業部", "division": "法人2課",
+     "specialty_tags": ["サーバー"], "is_top_performer": False},
+    {"employee_id": "R16", "name": "木村奈々", "role": "junior",
+     "department": "第二営業部", "division": "法人2課",
+     "specialty_tags": ["RPA", "ソフトウェア"], "is_top_performer": False},
+    {"employee_id": "R17", "name": "林大地", "role": "expert",
+     "department": "第三営業部", "division": "法人1課",
+     "specialty_tags": ["ネットワーク", "セキュリティ"], "is_top_performer": True},
+    {"employee_id": "R18", "name": "清水あかね", "role": "junior",
+     "department": "第三営業部", "division": "法人2課",
+     "specialty_tags": ["複合機"], "is_top_performer": False},
+    {"employee_id": "R19", "name": "斎藤陽介", "role": "senior",
+     "department": "第二営業部", "division": "法人1課",
+     "specialty_tags": ["ストレージ", "保守"], "is_top_performer": False},
+    {"employee_id": "R20", "name": "山口美月", "role": "junior",
+     "department": "第一営業部", "division": "法人1課",
+     "specialty_tags": ["ソフトウェア", "クラウド"], "is_top_performer": False},
+    {"employee_id": "R21", "name": "森田圭吾", "role": "expert",
+     "department": "第一営業部", "division": "法人1課",
+     "specialty_tags": ["サーバー", "ストレージ"], "is_top_performer": False},
+    {"employee_id": "R22", "name": "池田結衣", "role": "junior",
+     "department": "第三営業部", "division": "法人2課",
+     "specialty_tags": ["役務", "保守"], "is_top_performer": False},
+    {"employee_id": "R23", "name": "橋本悠真", "role": "senior",
+     "department": "第二営業部", "division": "法人2課",
+     "specialty_tags": ["提案", "クロージング", "複合機"], "is_top_performer": True},
+    {"employee_id": "R24", "name": "石川さやか", "role": "junior",
+     "department": "第三営業部", "division": "法人1課",
+     "specialty_tags": ["セキュリティ"], "is_top_performer": False},
 ]
 
 # Product master. major/mid/minor mirror the orders/quotes category columns.
+# Codes MFP30/MFP15/LP14/SRV20/NSW24/OFFICE/AV365 are the original seven (kept
+# stable); the rest broaden the catalog across Otsuka's real lines (OA, PC, server,
+# storage, network, software, and 役務/services).
 PRODUCTS = [
+    # --- OA機器 ---------------------------------------------------------------
     {"product_code": "MFP30", "product_name": "カラー複合機 3000",
      "manufacturer_model_number": "OTS-MFP-3000", "supplier": "大塚OEM",
      "major": "OA機器", "mid": "複合機", "minor": "A3カラー複合機",
@@ -85,21 +162,100 @@ PRODUCTS = [
      "major": "OA機器", "mid": "複合機", "minor": "A4モノクロ複合機",
      "standard_unit_price": 96000, "specs": "A4モノクロ複合機 / 25ppm",
      "manual_ja": "省スペース設置可。両面印刷はオプション。"},
+    {"product_code": "MFPC25", "product_name": "カラー複合機 2500",
+     "manufacturer_model_number": "OTS-MFP-2500", "supplier": "大塚OEM",
+     "major": "OA機器", "mid": "複合機", "minor": "A3カラー複合機",
+     "standard_unit_price": 180000, "specs": "A3カラー複合機 / 25ppm / 両面 / フィニッシャ対応",
+     "manual_ja": "中規模オフィス向け。クラウド連携スキャンに対応。"},
+    {"product_code": "SCN10", "product_name": "業務用スキャナー S10",
+     "manufacturer_model_number": "OTS-SCN-10", "supplier": "大塚OEM",
+     "major": "OA機器", "mid": "スキャナー", "minor": "ドキュメントスキャナー",
+     "standard_unit_price": 78000, "specs": "両面同時読取 / 60ppm / ADF対応",
+     "manual_ja": "電子帳簿保存法対応。OCRソフトを同梱。"},
+    {"product_code": "PRJ40", "product_name": "プロジェクター P40",
+     "manufacturer_model_number": "PRJ-40HD", "supplier": "東京電子",
+     "major": "OA機器", "mid": "プレゼン機器", "minor": "プロジェクター",
+     "standard_unit_price": 65000, "specs": "4000lm / フルHD / HDMI×2",
+     "manual_ja": "会議室の常設設置に対応。ランプ寿命は約6000時間。"},
+    {"product_code": "LBP20", "product_name": "レーザープリンタ L20",
+     "manufacturer_model_number": "LBP-20N", "supplier": "東京電子",
+     "major": "OA機器", "mid": "プリンタ", "minor": "A4レーザープリンタ",
+     "standard_unit_price": 42000, "specs": "A4モノクロ / 35ppm / 有線+無線",
+     "manual_ja": "ドライバはWeb自動配布に対応。トナーはTN-20を使用。"},
+    # --- PC周辺機器 -----------------------------------------------------------
     {"product_code": "LP14", "product_name": "ノートPro 14",
      "manufacturer_model_number": "NB-PRO-14", "supplier": "東京電子",
      "major": "PC周辺機器", "mid": "モバイル端末", "minor": "ノートPC",
      "standard_unit_price": 168000, "specs": "14型 / Core i7 / 16GB / 512GB SSD",
      "manual_ja": "法人向けキッティング対応。3年保証オプションあり。"},
+    {"product_code": "DT08", "product_name": "デスクトップ Biz 8",
+     "manufacturer_model_number": "DT-BIZ-8", "supplier": "東京電子",
+     "major": "PC周辺機器", "mid": "据置端末", "minor": "デスクトップPC",
+     "standard_unit_price": 128000, "specs": "Core i5 / 16GB / 512GB SSD / 小型筐体",
+     "manual_ja": "省スペース筐体。資産管理エージェントを初期導入可能。"},
+    {"product_code": "MON27", "product_name": "27型モニター M27",
+     "manufacturer_model_number": "MON-27W", "supplier": "東京電子",
+     "major": "PC周辺機器", "mid": "ディスプレイ", "minor": "液晶モニター",
+     "standard_unit_price": 34000, "specs": "27型 / WQHD / USB-C給電",
+     "manual_ja": "高さ調整・ピボット対応。USB-C 1本でノートPCと接続可。"},
+    {"product_code": "DOCK1", "product_name": "ドッキングステーション D1",
+     "manufacturer_model_number": "DCK-1U", "supplier": "東京電子",
+     "major": "PC周辺機器", "mid": "周辺機器", "minor": "ドック",
+     "standard_unit_price": 22000, "specs": "USB-C / HDMI×2 / 有線LAN / PD100W",
+     "manual_ja": "ノートPCの拡張に。複数台の一括キッティングに対応。"},
+    {"product_code": "TAB10", "product_name": "業務用タブレット T10",
+     "manufacturer_model_number": "TAB-10B", "supplier": "東京電子",
+     "major": "PC周辺機器", "mid": "モバイル端末", "minor": "タブレット",
+     "standard_unit_price": 58000, "specs": "10.5型 / LTE対応 / MDM対応",
+     "manual_ja": "店舗・現場向け。MDMで一括管理可能。"},
+    # --- サーバー / ストレージ ------------------------------------------------
     {"product_code": "SRV20", "product_name": "ラックサーバー R20",
      "manufacturer_model_number": "SRV-R20", "supplier": "日本サーバ販売",
      "major": "サーバー", "mid": "ラックサーバー", "minor": "1Uサーバー",
      "standard_unit_price": 520000, "specs": "1U / Xeon / 64GB / NVMe x2",
      "manual_ja": "RAID1構成を推奨。設置にはラックと空調の確認が必要。"},
+    {"product_code": "SRV40", "product_name": "タワーサーバー T40",
+     "manufacturer_model_number": "SRV-T40", "supplier": "日本サーバ販売",
+     "major": "サーバー", "mid": "タワーサーバー", "minor": "タワーサーバー",
+     "standard_unit_price": 380000, "specs": "Xeon / 32GB / SATA x4 / 静音",
+     "manual_ja": "サーバー室不要の静音設計。小規模オフィス向け。"},
+    {"product_code": "NAS08", "product_name": "NASストレージ N8",
+     "manufacturer_model_number": "NAS-8B", "supplier": "日本サーバ販売",
+     "major": "ストレージ", "mid": "NAS", "minor": "8ベイNAS",
+     "standard_unit_price": 240000, "specs": "8ベイ / 最大128TB / 10GbE",
+     "manual_ja": "RAID6推奨。バックアップ用途は別筐体での二重化を推奨。"},
+    {"product_code": "UPS15", "product_name": "無停電電源 UPS15",
+     "manufacturer_model_number": "UPS-1500", "supplier": "日本サーバ販売",
+     "major": "ストレージ", "mid": "電源", "minor": "UPS",
+     "standard_unit_price": 46000, "specs": "1500VA / ラックマウント対応",
+     "manual_ja": "サーバー・NASの停電対策に。バッテリ寿命は約5年。"},
+    # --- ネットワーク機器 -----------------------------------------------------
     {"product_code": "NSW24", "product_name": "ネットワークスイッチ 24p",
      "manufacturer_model_number": "NSW-24G", "supplier": "ネットワークス商会",
      "major": "ネットワーク機器", "mid": "スイッチ", "minor": "L2スイッチ",
      "standard_unit_price": 54000, "specs": "24ポート ギガビット / L2管理型",
      "manual_ja": "VLAN設定は管理画面から。PoEは非対応。"},
+    {"product_code": "NSW48", "product_name": "ネットワークスイッチ 48p PoE",
+     "manufacturer_model_number": "NSW-48P", "supplier": "ネットワークス商会",
+     "major": "ネットワーク機器", "mid": "スイッチ", "minor": "L2 PoEスイッチ",
+     "standard_unit_price": 128000, "specs": "48ポート / PoE+ / L2管理型",
+     "manual_ja": "無線APやIP電話への給電に対応。総PoE電力に注意。"},
+    {"product_code": "RTR10", "product_name": "VPNルーター R10",
+     "manufacturer_model_number": "RTR-10V", "supplier": "ネットワークス商会",
+     "major": "ネットワーク機器", "mid": "ルーター", "minor": "VPNルーター",
+     "standard_unit_price": 38000, "specs": "IPsec/SSL-VPN / ギガ対応",
+     "manual_ja": "拠点間VPNとリモートアクセスに対応。設定はテンプレ提供可。"},
+    {"product_code": "WAP6", "product_name": "無線アクセスポイント W6",
+     "manufacturer_model_number": "WAP-6AX", "supplier": "ネットワークス商会",
+     "major": "ネットワーク機器", "mid": "無線", "minor": "無線AP",
+     "standard_unit_price": 26000, "specs": "Wi-Fi6 / PoE給電 / 複数SSID",
+     "manual_ja": "コントローラ不要のクラスタ運用に対応。"},
+    {"product_code": "FW30", "product_name": "ファイアウォール F30",
+     "manufacturer_model_number": "FW-30U", "supplier": "ネットワークス商会",
+     "major": "ネットワーク機器", "mid": "セキュリティ機器", "minor": "UTM",
+     "standard_unit_price": 145000, "specs": "UTM / IPS / アンチウイルス / 年間ライセンス別",
+     "manual_ja": "年間更新ライセンスが必要。導入時にポリシー設計を推奨。"},
+    # --- ソフトウェア ---------------------------------------------------------
     {"product_code": "OFFICE", "product_name": "オフィススイート(年間/席)",
      "manufacturer_model_number": "SW-OFFICE-Y", "supplier": "ソフト流通",
      "major": "ソフトウェア", "mid": "業務ソフト", "minor": "オフィススイート",
@@ -110,17 +266,103 @@ PRODUCTS = [
      "major": "ソフトウェア", "mid": "セキュリティ", "minor": "EDR",
      "standard_unit_price": 6800, "specs": "アンチウイルス + EDR / 1台",
      "manual_ja": "EDRログは90日保持。導入後の初回スキャンを推奨。"},
+    {"product_code": "GRP50", "product_name": "グループウェア(年間/席)",
+     "manufacturer_model_number": "SW-GRP-Y", "supplier": "ソフト流通",
+     "major": "ソフトウェア", "mid": "業務ソフト", "minor": "グループウェア",
+     "standard_unit_price": 9600, "specs": "スケジュール/ワークフロー/掲示板",
+     "manual_ja": "既存メールと連携可。ワークフローは申請テンプレを提供。"},
+    {"product_code": "BKP20", "product_name": "バックアップソフト(年間)",
+     "manufacturer_model_number": "SW-BKP-Y", "supplier": "ソフト流通",
+     "major": "ソフトウェア", "mid": "運用ソフト", "minor": "バックアップ",
+     "standard_unit_price": 48000, "specs": "イメージ/ファイル / クラウド連携",
+     "manual_ja": "世代管理とクラウド退避に対応。復旧手順書を同梱。"},
+    {"product_code": "RPA30", "product_name": "RPAライセンス(年間)",
+     "manufacturer_model_number": "SW-RPA-Y", "supplier": "ソフト流通",
+     "major": "ソフトウェア", "mid": "業務自動化", "minor": "RPA",
+     "standard_unit_price": 360000, "specs": "デスクトップ型 / ロボット1体",
+     "manual_ja": "定型業務の自動化に。初期はシナリオ作成支援を推奨。"},
+    {"product_code": "VPN50", "product_name": "リモートアクセス(年間/席)",
+     "manufacturer_model_number": "SW-VPN-Y", "supplier": "ソフト流通",
+     "major": "ソフトウェア", "mid": "セキュリティ", "minor": "リモートアクセス",
+     "standard_unit_price": 4800, "specs": "ゼロトラスト型 / 多要素認証",
+     "manual_ja": "テレワーク向け。多要素認証を標準で有効化。"},
+    # --- 役務 / 保守 (services — booked as paid-service revenue) ---------------
+    {"product_code": "SVCKIT", "product_name": "キッティングサービス",
+     "manufacturer_model_number": "SVC-KIT", "supplier": "大塚商会SE",
+     "major": "役務", "mid": "導入支援", "minor": "キッティング",
+     "standard_unit_price": 8000, "specs": "PC1台あたりの初期設定・展開作業",
+     "manual_ja": "資産管理エージェントの導入込み。台数で見積。"},
+    {"product_code": "SVCONS", "product_name": "オンサイト保守(年間)",
+     "manufacturer_model_number": "SVC-ONS", "supplier": "大塚商会SE",
+     "major": "役務", "mid": "保守", "minor": "オンサイト保守",
+     "standard_unit_price": 120000, "specs": "翌営業日訪問 / 年間契約",
+     "manual_ja": "対象機器ごとに契約。SLAは翌営業日対応を基本とする。"},
+    {"product_code": "SVCNET", "product_name": "ネットワーク構築サービス",
+     "manufacturer_model_number": "SVC-NET", "supplier": "大塚商会SE",
+     "major": "役務", "mid": "導入支援", "minor": "ネットワーク構築",
+     "standard_unit_price": 180000, "specs": "現地調査 / 設計 / 構築 / 試験",
+     "manual_ja": "現地調査を前提に見積。既存配線とVLAN要件を確認する。"},
 ]
 
-# Company name parts for SMB customers (mostly no web presence).
+# Company name parts for SMB customers (mostly no web presence). Each stem/suffix
+# carries its romaji/English forms so customer_aliases.json can be auto-derived for
+# every customer (English-input resolution in store.resolve_customer needs them).
 _PREFIX = ["株式会社", "有限会社", ""]
-_STEM = ["山田", "あけぼの", "丸越", "大和", "みどり", "東和", "ヤマト", "富士", "明光",
-         "サンライズ", "第一", "中央", "北斗", "光", "新栄", "村田", "小林", "石川",
-         "ひかり", "あおぞら", "三幸", "ニュー", "誠和", "協和", "宝", "松田", "森本"]
-_SUFFIX = ["商事", "製作所", "工業", "システム", "物産", "建設", "サービス", "印刷",
-           "運輸", "電機", "クリニック", "事務所", "食品", "産業"]
+_STEM: list[tuple[str, str]] = [
+    ("山田", "Yamada"), ("あけぼの", "Akebono"), ("丸越", "Marukoshi"), ("大和", "Yamato"),
+    ("みどり", "Midori"), ("東和", "Towa"), ("ヤマト", "Yamato"), ("富士", "Fuji"),
+    ("明光", "Meiko"), ("サンライズ", "Sunrise"), ("第一", "Daiichi"), ("中央", "Chuo"),
+    ("北斗", "Hokuto"), ("光", "Hikari"), ("新栄", "Shinei"), ("村田", "Murata"),
+    ("小林", "Kobayashi"), ("石川", "Ishikawa"), ("ひかり", "Hikari"), ("あおぞら", "Aozora"),
+    ("三幸", "Sanko"), ("ニュー", "New"), ("誠和", "Seiwa"), ("協和", "Kyowa"),
+    ("宝", "Takara"), ("松田", "Matsuda"), ("森本", "Morimoto"), ("青木", "Aoki"),
+    ("大東", "Daito"), ("昭和", "Showa"), ("平和", "Heiwa"), ("丸三", "Marusan"),
+    ("旭", "Asahi"), ("瑞穂", "Mizuho"), ("豊田", "Toyoda"), ("長谷川", "Hasegawa"),
+    ("江口", "Eguchi"), ("関東", "Kanto"), ("小島", "Kojima"),
+    ("白井", "Shirai"), ("緑川", "Midorikawa"), ("黒田", "Kuroda"), ("今井", "Imai"),
+    ("和田", "Wada"), ("藤本", "Fujimoto"), ("岡本", "Okamoto"), ("中島", "Nakajima"),
+    ("西村", "Nishimura"), ("近藤", "Kondo"), ("遠藤", "Endo"),
+]
+_SUFFIX: list[tuple[str, list[str]]] = [
+    ("商事", ["Shoji", "Trading"]),
+    ("製作所", ["Seisakusho", "Works"]),
+    ("工業", ["Kogyo", "Industries"]),
+    ("システム", ["System", "Systems"]),
+    ("物産", ["Bussan", "Trading"]),
+    ("建設", ["Kensetsu", "Construction"]),
+    ("サービス", ["Service", "Services"]),
+    ("印刷", ["Insatsu", "Printing"]),
+    ("運輸", ["Unyu", "Transport"]),
+    ("電機", ["Denki", "Electric"]),
+    ("クリニック", ["Clinic"]),
+    ("事務所", ["Jimusho", "Office"]),
+    ("食品", ["Shokuhin", "Foods"]),
+    ("産業", ["Sangyo", "Industries"]),
+    ("精工", ["Seiko", "Precision"]),
+    ("興業", ["Kogyo", "Enterprise"]),
+]
 _INDUSTRY = ["製造", "小売", "医療", "建設", "飲食", "物流", "教育", "不動産", "士業", "IT"]
 _SIZE = ["小規模", "小規模", "小規模", "中規模"]  # weighted toward SMB
+
+# Anchor customers, keyed by the customer_id they must land on. These pin
+# resolution-behavior fixtures the tests rely on:
+#   · D001's customer must read 村田印刷 (asserted by a draft-message test).
+#   · C28 is the Matsuda demo default.
+#   · "Aozora Services" must resolve to exactly one customer (so the combo
+#     あおぞら+サービス is reserved below — no random customer may reuse it).
+#   · "Yamato Trading" must be ambiguous → two seeded customers both alias to it.
+_FORCED_CUSTOMERS = {
+    "C06": ("株式会社", ("あおぞら", "Aozora"), ("サービス", ["Service", "Services"])),
+    "C07": ("株式会社", ("大和", "Yamato"), ("商事", ["Shoji", "Trading"])),
+    "C13": ("有限会社", ("村田", "Murata"), ("印刷", ["Insatsu", "Printing"])),
+    "C18": ("有限会社", ("ヤマト", "Yamato"), ("物産", ["Bussan", "Trading"])),
+    "C28": ("株式会社", ("松田", "Matsuda"), ("サービス", ["Service", "Services"])),
+}
+# (stem_ja, suffix_ja) combos no random customer may use, so a reserved alias form
+# stays uniquely resolvable (here: 'Aozora Services').
+_RESERVED_COMBOS = {("あおぞら", "サービス")}
+MURATA_CID = "C13"
+MATSUDA_CID = "C28"
 
 # Daily-report free text (the knowledge-mining corpus + stall detection source).
 _REPORT_NORMAL = [
@@ -130,19 +372,46 @@ _REPORT_NORMAL = [
     "電話でフォロー。導入時期を相談。来月に再訪予定。",
     "競合製品と比較中とのこと。保守体制を強調して差別化を説明。",
     "現地調査を実施。既存環境の課題を整理して提案に反映する。",
+    "担当者が上長に共有してくれた。次回は決裁者の同席を打診したい。",
+    "追加要望をヒアリング。要件を精査して再見積を準備する。",
+    "導入後の運用フローを説明。現場の不安が和らいだ様子。",
+    "概算費用を提示。費用対効果の資料を追って送付する約束をした。",
+    "他部署への横展開に関心あり。まずは今回の範囲で着実に進める。",
+    "繁忙期を避けたいとのこと。スケジュールを調整して再提案する。",
 ]
 _REPORT_STALL = [
     "担当者より「検討します」との返答。具体的な時期は未定。",
     "「予算が」厳しいとのことで保留。次年度予算を待つ流れ。",
     "「時期を見て」改めて相談したいとの回答。動きが鈍い。",
     "決裁は「上と相談」してから、と先送りに。決裁者は不明のまま。",
+    "「持ち帰り」で社内調整するとのこと。以降の連絡が滞りがち。",
+    "「また連絡します」と言われたきり、こちらからの追客に反応薄。",
+    "他の優先案件が入り、今回は様子見との回答。停滞気味。",
 ]
+# A few category-flavored normal reports, mixed in occasionally for variety.
+_REPORT_BY_MAJOR = {
+    "OA機器": ["複合機のランニングコストを試算して提示。トナー込み総額で比較したい意向。",
+              "印刷枚数のカウンタを確認。現行機の保守切れ時期に合わせて提案する。"],
+    "PC周辺機器": ["老朽PCの台数を棚卸し。キッティング込みの更新計画を提案する。",
+                "リース満了の時期を確認。入替の段取りを早めに詰める。"],
+    "サーバー": ["サーバー室の空調と電源を確認。設置要件を満たすか現地で精査する。",
+              "現行サーバーの保守期限を確認。更改の必要性を数字で示す。"],
+    "ストレージ": ["データ増加量をヒアリング。バックアップ含む容量設計を提案する。",
+                "共有フォルダの運用課題を確認。NAS集約のメリットを説明。"],
+    "ネットワーク機器": ["無線の電波状況を現地で確認。AP増設の必要性を提示。",
+                    "拠点間の通信遅延を確認。VPN構成の見直しを提案する。"],
+    "ソフトウェア": ["ライセンスの棚卸しを依頼。年間コストの最適化案を提示。",
+                 "管理コンソールのデモを実施。一括運用の手間削減を訴求。"],
+    "役務": ["現地調査の日程を調整。作業範囲とSLAを擦り合わせる。",
+            "導入後の保守体制を説明。翌営業日対応の安心感を訴求。"],
+}
 _CHALLENGES = ["老朽化したPCの更新", "印刷コストの削減", "セキュリティ強化",
                "ネットワークの遅延", "サーバー更改", "業務効率化", "保守切れ対応",
-               "テレワーク環境の整備"]
+               "テレワーク環境の整備", "データ容量の逼迫", "属人化した運用の標準化",
+               "拠点間の情報共有", "バックアップ体制の見直し"]
 _CARD_DM = ["情報システム部 部長", "総務部 課長", "代表取締役", "経営企画 本部長",
-            "管理部 責任者"]
-_CARD_NONDM = ["情報システム部 担当", "総務部 担当者", "営業部 主任", ""]
+            "管理部 責任者", "取締役 管理本部長", "情シス長"]
+_CARD_NONDM = ["情報システム部 担当", "総務部 担当者", "営業部 主任", "経理部 担当", ""]
 
 PLAYBOOK_SITUATIONS = [
     (["決定先延ばし", "クロージング"], "先延ばしには『次の一歩』を具体化する。次回訪問日とその場で決める事項を明確に提案する。"),
@@ -170,6 +439,13 @@ PLAYBOOK_SITUATIONS = [
     (["リプレース", "提案"], "更新案件は現行機の不満点を起点に、改善を具体的に見せる。"),
     (["コスト削減", "提案"], "コスト削減提案は年間総額の比較表を1枚にまとめる。"),
     (["スピード", "対応"], "SMBは即レス・即対応そのものが差別化になる。"),
+    # --- appended for the broadened catalog ----------------------------------
+    (["ストレージ", "提案"], "ストレージ提案はデータ増加量の実測から。3年後の容量を見込んで設計する。"),
+    (["バックアップ", "提案"], "バックアップは『復旧できること』を訴求。リストア手順の実演が決め手になる。"),
+    (["RPA", "業務効率化"], "RPAは小さな定型業務から着手。最初の1業務で効果を可視化すると横展開しやすい。"),
+    (["役務", "保守"], "役務・保守はSLA(対応時間)を明確に。安さより『止まらない安心』を売る。"),
+    (["テレワーク", "セキュリティ"], "テレワークは利便性と統制の両立を。多要素認証込みで提案すると決裁が通りやすい。"),
+    (["UPS", "サーバー"], "サーバー・NASの提案には停電対策(UPS)を必ずセットで。事故時の損失で訴求する。"),
 ]
 
 
@@ -183,48 +459,125 @@ _LIKELIHOOD_FROM_RANK = {"2_A+": "high", "3_A": "high", "1_Confirmed": "high",
                          "4_B": "med", "5_C": "low", "6_P": "low",
                          "7_Lost": "low", "8_Cancelled": "low"}
 
+# Believable pipeline progression, strongest path (high rank-number → low number).
+_PIPELINE_ORDER = ["6_P", "5_C", "4_B", "3_A", "2_A+", "1_Confirmed"]
 
-def _company_name(rnd):
-    return f"{rnd.choice(_PREFIX)}{rnd.choice(_STEM)}{rnd.choice(_SUFFIX)}"
 
-
-def _split_revenue(amount: int, prod):
+def _split_revenue(amount: int, prod) -> tuple[int, int, int]:
     """Split a deal amount across hw/sw/paid buckets based on the product's major
     category, and return (hw, sw, paid)."""
     major = prod["major"]
     if major == "ソフトウェア":
         return 0, amount, 0
-    if major in ("サーバー", "ネットワーク機器"):
+    if major == "役務":
+        return 0, 0, amount                              # pure paid service
+    if major in ("サーバー", "ストレージ", "ネットワーク機器"):
         return int(amount * 0.8), 0, int(amount * 0.2)   # some setup service
-    return amount, 0, 0                                   # hardware
+    return amount, 0, 0                                   # hardware (OA / PC)
+
+
+def _rank_path(initial: str, final: str) -> list[str]:
+    """A believable ordered list of ranks from `initial` to `final`.
+
+    · strengthened (final is stronger/lower number): step down through the pipeline.
+    · regressed (open deal dropped to a weaker rank): a single drop [initial, final].
+    · dead (final is 7_Lost/8_Cancelled): [initial, final] (was live, then died).
+    """
+    if initial == final:
+        return [initial]
+    ni, nf = config.rank_num(initial), config.rank_num(final)
+    if final in config.DEAD_RANKS or nf > ni:
+        return [initial, final]
+    # strengthened: every pipeline rank whose number is between final and initial.
+    path = [r for r in _PIPELINE_ORDER if nf <= config.rank_num(r) <= ni]
+    if initial not in path:
+        path.insert(0, initial)
+    if final not in path:
+        path.append(final)
+    return path
+
+
+def _rank_history(initial: str, final: str, first_days_ago: int,
+                  updated_days_ago: int) -> list[dict]:
+    """Dated trail of order_rank changes (list of {rank, changed_at}). Oldest entry ==
+    initial at the registration date; newest == final at rank_updated. Dates strictly
+    increasing. Emitted to the separate rank_history.json table (additive — the scorer
+    still reads only initial_order_rank + order_rank + rank_updated_at)."""
+    path = _rank_path(initial, final)
+    if first_days_ago == updated_days_ago:                   # registration == last touch
+        return [{"rank": path[0], "changed_at": _iso(updated_days_ago)}]
+    if len(path) == 1:                                       # rank never changed: span
+        path = [path[0], path[0]]                            # registration → last touch
+    k = len(path)
+    span = first_days_ago - updated_days_ago                 # >0 (older → newer)
+    hist = []
+    for j, rank in enumerate(path):
+        days_ago = round(first_days_ago - span * j / (k - 1))
+        hist.append({"rank": rank, "changed_at": _iso(days_ago)})
+    return hist
+
+
+def _make_customers(rnd) -> tuple[list[dict], dict]:
+    """~150 SMB customers + an auto-derived alias map (customer_aliases.json)."""
+    customers: list[dict] = []
+    aliases: dict[str, object] = {
+        "_comment": ("English / romaji aliases per customer_id, auto-derived from the "
+                     "name parts in gen_seed.py. Maps how a rep might type a customer "
+                     "name in non-Japanese forms to the canonical JA record. Bare forms "
+                     "only (no 株式会社/有限会社). Short stem forms (e.g. 'Yamato', "
+                     "'Hikari') are intentionally shared across customers — the resolver "
+                     "treats a name that matches >1 customer as ambiguous and refuses to "
+                     "guess, so only specific forms ('Yamato Trading') resolve."),
+    }
+    seen: set[str] = set()
+    n = 150
+    for i in range(1, n + 1):
+        cid = f"C{i:02d}"
+        if cid in _FORCED_CUSTOMERS:
+            prefix, (stem_ja, stem_ro), (suf_ja, suf_forms) = _FORCED_CUSTOMERS[cid]
+        else:
+            while True:
+                prefix = rnd.choice(_PREFIX)
+                stem_ja, stem_ro = rnd.choice(_STEM)
+                suf_ja, suf_forms = rnd.choice(_SUFFIX)
+                if (stem_ja, suf_ja) in _RESERVED_COMBOS:
+                    continue
+                if f"{prefix}{stem_ja}{suf_ja}" not in seen:
+                    break
+        name = f"{prefix}{stem_ja}{suf_ja}"
+        seen.add(name)
+        industry = rnd.choice(_INDUSTRY)
+        customers.append({
+            "customer_id": cid, "name": name, "industry": industry,
+            "size": rnd.choice(_SIZE),
+            "has_web_presence": rnd.random() < 0.25,   # ~75% SMB → mostly none
+            "profile_tags": sorted({industry, rnd.choice(_SIZE),
+                                    rnd.choice(["既存", "新規", "紹介"])}),
+        })
+        forms = [f"{stem_ro} {sf}" for sf in suf_forms]
+        forms.append(stem_ro)
+        aliases[cid] = sorted(dict.fromkeys(forms))        # dedupe, stable order
+    return customers, aliases
 
 
 def generate():
     rnd = random.Random(42)
 
-    # --- customers ---------------------------------------------------------
-    customers, seen = [], set()
-    while len(customers) < 35:
-        name = _company_name(rnd)
-        if name in seen:
-            continue
-        seen.add(name)
-        cid = f"C{len(customers) + 1:02d}"
-        industry = rnd.choice(_INDUSTRY)
-        customers.append({
-            "customer_id": cid, "name": name, "industry": industry,
-            "size": rnd.choice(_SIZE),
-            "has_web_presence": rnd.random() < 0.25,   # ~78% SMB → mostly none
-            "profile_tags": sorted({industry, rnd.choice(_SIZE),
-                                    rnd.choice(["既存", "新規", "紹介"])}),
-        })
+    # --- customers + aliases ----------------------------------------------
+    customers, customer_aliases = _make_customers(rnd)
+    cust_by_id = {c["customer_id"]: c for c in customers}
+    cust_ids = [c["customer_id"] for c in customers]
+    emp_ids = [r["employee_id"] for r in REPS]
 
     # --- environments (GAP in SPR; supplementary, from another system) ------
-    pcs = ["デスクトップ12台", "ノートPC8台", "デスクトップ5台/ノート3台", "ノートPC20台"]
+    pcs = ["デスクトップ12台", "ノートPC8台", "デスクトップ5台/ノート3台", "ノートPC20台",
+           "デスクトップ30台", "ノートPC15台/タブレット5台"]
     oses = ["Windows 11", "Windows 10", "Windows 10/11混在"]
-    nets = ["光回線/無線LAN", "有線LANのみ", "光回線/VPN有", "ADSL(更改検討中)"]
+    nets = ["光回線/無線LAN", "有線LANのみ", "光回線/VPN有", "ADSL(更改検討中)",
+            "光回線/拠点間VPN"]
     env_notes = ["前任者からの引継ぎ情報。", "現地調査は未実施。",
-                 "サーバー室の空調に余裕なし。", "プリンタは共有設定済み。"]
+                 "サーバー室の空調に余裕なし。", "プリンタは共有設定済み。",
+                 "無線が一部届きにくいエリアあり。", "バックアップは外付けHDDのみ。"]
     environments = [{
         "customer_id": c["customer_id"], "pc": rnd.choice(pcs),
         "os": rnd.choice(oses), "network": rnd.choice(nets),
@@ -233,65 +586,51 @@ def generate():
 
     # --- deals + sales_activities + quotes + orders ------------------------
     deals, activities, quotes, orders = [], [], [], []
-    cust_ids = [c["customer_id"] for c in customers]
-    emp_ids = [r["employee_id"] for r in REPS]
-    act_seq = quote_seq = order_seq = 1
+    rank_history = []                  # separate, normalized order-rank change log
+    seqs = {"quote": 1, "order": 1}
 
-    DEAD_COUNT, TOTAL = 4, 60
-
-    for i in range(TOTAL):
-        did = f"D{i + 1:03d}"
-        oppid = f"OPP{i + 1:03d}"           # 1:1 with deal in this synthetic set
-        cid = rnd.choice(cust_ids)
-        emp = rnd.choice(emp_ids)
+    def add_deal(did, cid, emp, prod, qty, order_rank, initial_rank, cohort,
+                 has_dm, stall):
         sales_info = next({"department": r["department"], "division": r["division"],
-                           "employee_id": r["employee_id"]} for r in REPS if r["employee_id"] == emp)
-        prod = rnd.choice(PRODUCTS)
-        qty = rnd.randint(1, 6)
+                           "employee_id": r["employee_id"]}
+                          for r in REPS if r["employee_id"] == emp)
         amount = prod["standard_unit_price"] * qty
-        is_dead = i < DEAD_COUNT
-
-        if is_dead:
-            # Strong rank (rep optimism) but stale, order date passed, no DM.
-            order_rank = rnd.choice(["2_A+", "3_A"])
-            initial_rank = order_rank                 # rep never downgraded it
-            rank_updated = rnd.randint(50, 80)
-            last_activity = rnd.randint(45, 75)
-            until_order = -rnd.randint(20, 35)        # already past
-            has_dm = False
-            stall = True
-            status = "open"
-        else:
-            order_rank = rnd.choices(
-                ["2_A+", "3_A", "4_B", "5_C", "6_P", "1_Confirmed", "7_Lost"],
-                weights=[8, 14, 16, 14, 10, 18, 10])[0]
-            # ~30% of open deals honestly regressed to a weaker rank.
-            initial_rank = order_rank
-            if config.is_open_rank(order_rank) and rnd.random() < 0.3:
-                stronger = [r for r in ["2_A+", "3_A", "4_B"]
-                            if config.rank_num(r) < config.rank_num(order_rank)]
-                if stronger:
-                    initial_rank = rnd.choice(stronger)
-            rank_updated = rnd.randint(2, 40)
-            last_activity = rnd.randint(0, 25)
-            until_order = rnd.randint(5, 70)
-            has_dm = rnd.random() < 0.6
-            stall = rnd.random() < 0.2
-            status = ("won" if order_rank == "1_Confirmed"
-                      else "lost" if order_rank == "7_Lost" else "open")
-
-        rank_first = rank_updated + rnd.randint(5, 30)
-        expected_order = _iso(-until_order)
         confirmed = order_rank == "1_Confirmed"
 
+        # --- cohort timing (days-ago from REF) -----------------------------
+        if cohort == "dead_anchor":
+            rank_updated = rnd.randint(50, 80)
+            rank_first = rank_updated + rnd.randint(15, 40)
+            last_activity = rnd.randint(45, 75)
+            until_order = -rnd.randint(20, 35)            # already past
+            status = "open"
+        elif cohort == "live":
+            rank_updated = rnd.randint(2, 40)
+            rank_first = rank_updated + rnd.randint(10, 45)
+            last_activity = rnd.randint(0, 25)
+            until_order = rnd.randint(5, 70)
+            status = "open"
+        elif cohort == "won":
+            rank_updated = rnd.randint(20, 760)           # confirmed across prior FYs
+            rank_first = rank_updated + rnd.randint(25, 130)
+            last_activity = rank_updated + rnd.randint(0, 12)
+            until_order = -rank_updated + rnd.randint(-8, 8)   # order date ~ confirmation
+            status = "won"
+        else:  # "lost"
+            rank_updated = rnd.randint(40, 760)
+            rank_first = rank_updated + rnd.randint(25, 130)
+            last_activity = rank_updated + rnd.randint(0, 20)
+            until_order = -rnd.randint(5, max(6, rank_updated // 2))
+            status = "lost"
+
+        expected_order = _iso(-until_order)
         hw_o, sw_o, paid_o = _split_revenue(amount, prod)
         # gross profit ~22% hw, ~60% sw, ~35% paid service
         hw_gp, sw_gp, paid_gp = int(hw_o * 0.22), int(sw_o * 0.60), int(paid_o * 0.35)
-        # "actual" revenue is realised only once confirmed.
-        f = 1 if confirmed else 0
+        f = 1 if confirmed else 0                          # "actual" realised only if won
         deal = {
             "customer_id": cid, "deal_id": did, "sales_info": sales_info,
-            "deal_name": f"{customers[int(cid[1:]) - 1]['name']} {prod['mid']}案件",
+            "deal_name": f"{cust_by_id[cid]['name']} {prod['mid']}案件",
             "expected_order_date": expected_order,
             "days_until_order": until_order,
             "registered_at": _iso(rank_first + 5),
@@ -332,25 +671,32 @@ def generate():
         })
         deals.append(deal)
 
+        # --- order-rank change log for this deal (separate supplementary table) ---
+        for e in _rank_history(initial_rank, order_rank, rank_first, rank_updated):
+            rank_history.append({"deal_id": did, "rank": e["rank"],
+                                 "changed_at": e["changed_at"]})
+
         # --- sales_activities for this deal (the activity log / daily reports)
-        n_acts = rnd.randint(2, 4)
-        fy, fq = _fy(_iso(rank_first))
+        oppid = "OPP" + did[1:]                            # 1:1 with deal here
+        n_acts = rnd.randint(3, 6)
         for j in range(n_acts):
             latest = j == n_acts - 1
             adays = last_activity + (n_acts - 1 - j) * rnd.randint(6, 12)
-            if is_dead and latest:
+            if (cohort == "dead_anchor" or stall) and latest:
                 text = rnd.choice(_REPORT_STALL)
-            elif stall and latest:
-                text = rnd.choice(_REPORT_STALL)
+            elif rnd.random() < 0.3:
+                text = rnd.choice(_REPORT_BY_MAJOR.get(prod["major"], _REPORT_NORMAL))
             else:
                 text = rnd.choice(_REPORT_NORMAL)
-            card = (rnd.choice(_CARD_DM) if has_dm else rnd.choice(_CARD_NONDM))
+            card = rnd.choice(_CARD_DM) if has_dm else rnd.choice(_CARD_NONDM)
             atype = rnd.choice(["002_Daily Report", "002_Daily Report",
                                 "001_Scheduled", "003_Deal", "004_Quote"])
+            adate = _iso(adays)
+            fy, fq = _fy(adate)
             activities.append({
                 "customer_id": cid, "opportunity_id": oppid,
                 "fiscal_year": fy, "fiscal_quarter": fq,
-                "started_at": _iso(rank_first), "activity_date": _iso(adays),
+                "started_at": _iso(rank_first), "activity_date": adate,
                 "closed_flag": status != "open",
                 "activity_type": atype,
                 "days_since_last_order": rnd.randint(10, 400),
@@ -362,16 +708,16 @@ def generate():
                 "daily_report": text,
                 "quote_id": None, "order_id": None, "deal_id": did,
             })
-            act_seq += 1
 
         # --- quote (deals that progressed past prospecting get one) ----------
-        if config.rank_num(order_rank) <= 5 or confirmed:
-            qid = f"Q{quote_seq:04d}"
-            quote_seq += 1
+        if config.rank_num(initial_rank) <= 5 or confirmed:
+            qid = f"Q{seqs['quote']:04d}"
+            seqs["quote"] += 1
             disc_rate = rnd.choice([0, 5, 8, 10, 12])
             disc_amt = int(amount * disc_rate / 100)
             quotes.append({
-                "quote_type": "Product Sales", "quote_id": qid,
+                "quote_type": "Maintenance" if prod["major"] == "役務" else "Product Sales",
+                "quote_id": qid,
                 "quoted_at": _iso(rank_updated + 3),
                 "quote_expiry_date": _iso(rank_updated + 3 - 30),
                 "customer_id": cid, "sales_info": sales_info,
@@ -389,13 +735,13 @@ def generate():
                     a["quote_id"] = qid
                     break
 
-            # --- order lines (only for confirmed deals) ----------------------
+            # --- order lines (only for confirmed/won deals) ------------------
             if confirmed:
-                oid = f"O{order_seq:04d}"
-                order_seq += 1
+                oid = f"O{seqs['order']:04d}"
+                seqs["order"] += 1
                 sell = (amount - disc_amt) // qty
                 cogs = int(sell * 0.78)
-                ordered = rnd.randint(1, 20)
+                ordered = max(1, rank_updated - rnd.randint(0, 10))
                 orders.append({
                     "customer_id": cid, "order_id": oid, "quote_id": qid,
                     "sales_info": sales_info,
@@ -421,6 +767,62 @@ def generate():
                         a["order_id"] = oid
                         break
 
+    # ----- cohort plan -----------------------------------------------------
+    did_n = 1
+
+    def next_did():
+        nonlocal did_n
+        d = f"D{did_n:03d}"
+        did_n += 1
+        return d
+
+    # 1) Deliberately-dead anchors D001–D004: strong rank but stale, order date
+    #    passed, no decision-maker. D001 is the 村田印刷 account.
+    for k in range(4):
+        cid = MURATA_CID if k == 0 else rnd.choice(cust_ids)
+        rank = rnd.choice(["2_A+", "3_A"])
+        add_deal(next_did(), cid, rnd.choice(emp_ids), rnd.choice(PRODUCTS),
+                 rnd.randint(1, 6), rank, rank, "dead_anchor", has_dm=False, stall=True)
+
+    # 2) Matsuda (C28) rich open pipeline — varied ranks/health for the demo Q&A.
+    matsuda_plan = [
+        ("2_A+", False, True), ("3_A", True, False), ("4_B", True, False),
+        ("5_C", False, True), ("6_P", True, False),
+    ]
+    matsuda_emps = ["R05", "R01", "R02", "R05", "R03"]
+    for (rank, has_dm, stall), emp in zip(matsuda_plan, matsuda_emps):
+        add_deal(next_did(), MATSUDA_CID, emp, rnd.choice(PRODUCTS), rnd.randint(1, 6),
+                 rank, rank, "live", has_dm=has_dm, stall=stall)
+
+    # 3) General live pipeline (open ranks, near REF).
+    for _ in range(131):
+        order_rank = rnd.choices(["2_A+", "3_A", "4_B", "5_C", "6_P"],
+                                 weights=[10, 18, 22, 20, 14])[0]
+        initial_rank = order_rank
+        if rnd.random() < 0.3:                             # ~30% honestly regressed
+            stronger = [r for r in ["2_A+", "3_A", "4_B"]
+                        if config.rank_num(r) < config.rank_num(order_rank)]
+            if stronger:
+                initial_rank = rnd.choice(stronger)
+        add_deal(next_did(), rnd.choice(cust_ids), rnd.choice(emp_ids),
+                 rnd.choice(PRODUCTS), rnd.randint(1, 6), order_rank, initial_rank,
+                 "live", has_dm=rnd.random() < 0.6, stall=rnd.random() < 0.2)
+
+    # 4) Historical won (1_Confirmed) across prior fiscal years.
+    for _ in range(280):
+        initial_rank = rnd.choice(["3_A", "4_B", "4_B", "5_C"])
+        add_deal(next_did(), rnd.choice(cust_ids), rnd.choice(emp_ids),
+                 rnd.choice(PRODUCTS), rnd.randint(1, 6), "1_Confirmed", initial_rank,
+                 "won", has_dm=rnd.random() < 0.85, stall=False)
+
+    # 5) Historical dead (7_Lost / 8_Cancelled).
+    for _ in range(100):
+        order_rank = rnd.choices(["7_Lost", "8_Cancelled"], weights=[80, 20])[0]
+        initial_rank = rnd.choice(["3_A", "4_B", "5_C", "6_P"])
+        add_deal(next_did(), rnd.choice(cust_ids), rnd.choice(emp_ids),
+                 rnd.choice(PRODUCTS), rnd.randint(1, 6), order_rank, initial_rank,
+                 "lost", has_dm=rnd.random() < 0.4, stall=rnd.random() < 0.5)
+
     # --- playbook (mined-from-daily_report knowledge artifact) -------------
     playbook = []
     for k, (tags, text) in enumerate(PLAYBOOK_SITUATIONS):
@@ -435,6 +837,7 @@ def generate():
         # supplementary reference data
         "reps": REPS, "customers": customers, "products": PRODUCTS,
         "environments": environments, "playbook": playbook,
+        "customer_aliases": customer_aliases, "rank_history": rank_history,
         # production SPR schema tables
         "deals": deals, "sales_activities": activities,
         "quotes": quotes, "orders": orders,
@@ -448,7 +851,8 @@ def write():
         path = config.SEED_DIR / f"{name}.json"
         path.write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n",
                         encoding="utf-8")
-        print(f"wrote {path.relative_to(config.PKG_DIR.parent)} ({len(rows)} rows)")
+        n = len(rows) if isinstance(rows, list) else len(rows) - 1   # alias map: minus _comment
+        print(f"wrote {path.relative_to(config.PKG_DIR.parent)} ({n} rows)")
 
 
 if __name__ == "__main__":
