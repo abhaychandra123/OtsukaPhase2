@@ -211,6 +211,26 @@ TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "morning_briefing",
+            "description": "The rep's prioritized to-do for today: their open deals ranked by "
+                           "urgency × value, each with ONE concrete next action (e.g. follow up, "
+                           "identify the decision-maker, re-confirm the close date). Includes a "
+                           "predictive nudge for deals about to breach their contact cadence. "
+                           "Omit rep_id for a whole-team view. Use this to answer 'what should I "
+                           "do today?' / '今日やるべきことは?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "rep_id": {"type": "string", "description": "Rep ID to brief, e.g. 'R12'. Omit for the whole team."},
+                    "limit": {"type": "integer", "description": "Max actions to return (default 10)"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_at_risk_deals",
             "description": "List at-risk open deals across the whole team (or one rep), worst first. "
                            "Each line shows the owner, customer, risk score and the top reason. "
@@ -462,13 +482,13 @@ JUNIOR_TOOLS = _pick(
     "query_spr", "find_similar_deals", "retrieve_playbook", "search_knowledge",
     "search_notes", "lookup_customer_environment", "get_product_info", "search_products",
     "create_quote", "score_deal_health", "draft_daily_report", "schedule_meeting",
-    "send_email", "get_calendar", "route_to_expert",
+    "send_email", "get_calendar", "route_to_expert", "morning_briefing",
     "get_seasonal_context", "web_search",
 )
 
 # Manager: team analytics + drill-down + drafting + semantic/graph search + web.
 MANAGER_TOOLS = _pick(
-    "query_spr", "score_deal_health", "list_at_risk_deals",
+    "query_spr", "score_deal_health", "morning_briefing", "list_at_risk_deals",
     "team_pipeline_overview", "team_report_digest", "rep_coaching_focus",
     "search_knowledge", "search_notes", "query_graph", "search_products",
     "create_quote", "schedule_meeting",

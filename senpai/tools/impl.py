@@ -220,6 +220,19 @@ def summarize_reports(rep_id: str = "") -> str:
 _BAND_EMOJI = {"red": "🔴", "yellow": "🟡", "green": "🟢"}
 
 
+def morning_briefing(rep_id: str = "", limit: int = 10) -> str:
+    """The rep's prioritized next-best-action worklist for today (or the whole
+    team if no rep). Thin wrapper over senpai.briefing."""
+    from senpai.briefing import format_briefing
+    from senpai.briefing import morning_briefing as _briefing
+    try:
+        limit = int(limit)
+    except (TypeError, ValueError):
+        limit = 10
+    items = _briefing(rep_id=rep_id, limit=limit)
+    return format_briefing(items, rep_id=rep_id)
+
+
 def list_at_risk_deals(rep_id: str = "", band: str = "", limit: int = 10) -> str:
     """At-risk open deals across the team (or one rep), worst first. Defaults to
     red; pass band='yellow' (includes red+yellow) to widen."""
@@ -633,6 +646,7 @@ _DISPATCH = {
     "summarize_reports": summarize_reports,
     "get_seasonal_context": get_seasonal_context,
     # Manager + shared tools
+    "morning_briefing": morning_briefing,
     "list_at_risk_deals": list_at_risk_deals,
     "team_pipeline_overview": team_pipeline_overview,
     "team_report_digest": team_report_digest,
@@ -688,6 +702,7 @@ if __name__ == "__main__":
         ("route_to_expert", {"question": "ネットワーク更改の構成相談", "tags": ["ネットワーク"]}),
         ("summarize_reports", {"rep_id": "R05"}),
         ("get_seasonal_context", {"month": 2}),
+        ("morning_briefing", {"rep_id": "R12", "limit": 5}),
         ("list_at_risk_deals", {"limit": 5}),
         ("query_graph", {"intent": "reps_who_win", "category": "サーバー"}),
         ("query_graph", {"intent": "account", "customer": "C28"}),
