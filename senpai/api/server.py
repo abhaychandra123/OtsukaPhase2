@@ -308,6 +308,7 @@ class CoachRequest(BaseModel):
     deal_id: str | None = None
     narrate: bool = False
     lang: str = "ja"  # narration output language ("ja" | "en") — presentation only
+    conversation_id: str | None = None  # reuse a built context across re-narrates
 
 class TranslateRequest(BaseModel):
     text: str
@@ -412,6 +413,26 @@ def _sse(obj: dict) -> str:
     return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
 
 
+# Reasoning tags vary by sampling: the model emits either <think> or <thinking>
+# (and the matching close). Match both spellings so a reasoning block is never
+# leaked into the user-facing answer.
+_THINK_CLOSE = re.compile(r"</think(?:ing)?>", re.IGNORECASE)
+_THINK_OPEN = re.compile(r"<think(?:ing)?>", re.IGNORECASE)
+
+
+def _strip_reasoning(full: str) -> str | None:
+    """The answer portion of a partial stream with any reasoning block removed.
+
+    Returns None while still inside an unclosed <think>/<thinking> block (the
+    caller surfaces a 'thinking' indicator); otherwise the visible answer text."""
+    m = _THINK_CLOSE.search(full)
+    if m:
+        return full[m.end():].lstrip("\n -")
+    if _THINK_OPEN.search(full):
+        return None
+    return full
+
+
 @app.post("/api/coach/narrate")
 def coach_narrate(req: CoachRequest):
     """Stream the Senior Commentary token-by-token (SSE).
@@ -419,9 +440,10 @@ def coach_narrate(req: CoachRequest):
     This is an experienced rep's *interpretation* layered on the deterministic
     coach — grounded in a retrieved business-context package (customer, deal
     health, activity, history, similar cases), NOT a restatement of the lenses.
-    Reasoning is disabled (low latency) and the request is pinned to the primary
-    GGUF endpoint — on any failure we emit an explicit `unavailable`, never a
-    silent switch to another model. Event types:
+    Reasoning is OFF by default (fast live path); set SENPAI_NARRATE_THINK=1 to let
+    the model think first (slower, richer) — either way any <think>/<thinking>
+    block is stripped before streaming. The request is pinned to the primary GGUF
+    endpoint — on any failure we emit an explicit `unavailable`. Event types:
       start | context | thinking | delta | done | unavailable
     The frontend renders deltas live and shows "Senior commentary unavailable" on
     `unavailable`."""
@@ -431,49 +453,79 @@ def coach_narrate(req: CoachRequest):
             media_type="text/event-stream",
         )
 
-    deal = store.get_deal(req.deal_id) if req.deal_id else None
-    acts = store.activities_for_deal(req.deal_id) if deal else None
-    r = review_note(req.note, deal=deal, notes=acts, report=None)
-    context_text, ctx_meta = build_commentary_context(
-        req.note, deal_id=req.deal_id, today=_today(), lang=req.lang)
+    # Conversation cache: re-narrating the SAME deal+note in a session reuses the
+    # already-built deterministic context package (review_note + commentary context)
+    # instead of recomputing it. The build is cheap, but caching keeps the grounded
+    # context byte-identical across re-narrates and signals provenance to the UI.
+    conversation_id = (req.conversation_id or "default").strip() or "default"
+    cache = _COACH_CONTEXTS.get(conversation_id)
+    cached_flag = bool(cache and cache["deal_id"] == req.deal_id and cache["note"] == req.note
+                       and cache["lang"] == req.lang)
+    if cached_flag:
+        r, context_text, ctx_meta = cache["r"], cache["context_text"], cache["meta"]
+    else:
+        deal = store.get_deal(req.deal_id) if req.deal_id else None
+        acts = store.activities_for_deal(req.deal_id) if deal else None
+        r = review_note(req.note, deal=deal, notes=acts, report=None)
+        context_text, ctx_meta = build_commentary_context(
+            req.note, deal_id=req.deal_id, today=_today(), lang=req.lang)
+        _COACH_CONTEXTS[conversation_id] = {
+            "deal_id": req.deal_id, "note": req.note, "lang": req.lang,
+            "r": r, "context_text": context_text, "meta": ctx_meta}
     prompt = commentary_prompt(req.note, r, context_text,
-                               ctx_meta["has_customer_context"], lang=req.lang)
+                               ctx_meta["has_customer_context"], lang=req.lang,
+                               customer_name=ctx_meta.get("customer"),
+                               deal_id=ctx_meta.get("deal_id"))
 
     def gen():
         from senpai.llm import client
         yield _sse({"type": "start", "model": config.MODEL,
-                    "endpoint": config.BASE_URL})
+                    "endpoint": config.BASE_URL, "conversation_id": conversation_id})
         # Tell the UI what real records the read is grounded in (or that none matched).
         yield _sse({"type": "context", "grounded": ctx_meta["has_customer_context"],
                     "customer": ctx_meta["customer"], "deal_id": ctx_meta["deal_id"],
                     "confidence": ctx_meta.get("confidence", "none"),
-                    "match_method": ctx_meta.get("match_method", "none")})
+                    "match_method": ctx_meta.get("match_method", "none"),
+                    "cached": cached_flag})
         full, emitted, last_think = "", 0, 0
         try:
             for piece in client.stream_complete(
                 [{"role": "user", "content": prompt}],
                 temperature=0.5, max_tokens=config.LLM_NARRATE_MAX_TOKENS,
-                no_think=True, allow_fallback=False,
+                no_think=not config.NARRATE_THINK, allow_fallback=False,
             ):
                 full += piece
-                if "</think>" in full:                         # strip any echoed think block
-                    answer = full.split("</think>", 1)[1].lstrip("\n ")
-                elif "<think>" in full:
-                    answer = ""
-                else:
-                    answer = full
+                answer = _strip_reasoning(full)                 # hide any reasoning block
                 if answer:
                     new = answer[emitted:]
                     if new:
                         emitted += len(new)
                         yield _sse({"type": "delta", "text": new})
-                elif len(full) - last_think >= 48:
+                elif answer is None and len(full) - last_think >= 48:
                     last_think = len(full)
                     yield _sse({"type": "thinking", "chars": len(full)})
             if emitted:
                 yield _sse({"type": "done", "model": config.MODEL})
             else:
-                yield _sse({"type": "unavailable", "reason": "empty"})
+                # Reasoning consumed the whole budget before any answer token (a
+                # long <think> block on a contended GPU). Retry once with thinking
+                # off so the rep always gets a grounded read, never a blank.
+                fb, fb_emitted = "", 0
+                for piece in client.stream_complete(
+                    [{"role": "user", "content": prompt}],
+                    temperature=0.5, max_tokens=config.LLM_NARRATE_MAX_TOKENS,
+                    no_think=True, allow_fallback=False,
+                ):
+                    fb += piece
+                    ans = _strip_reasoning(fb)
+                    new = ans[fb_emitted:] if ans else ""
+                    if new:
+                        fb_emitted += len(new)
+                        yield _sse({"type": "delta", "text": new})
+                if fb_emitted:
+                    yield _sse({"type": "done", "model": config.MODEL})
+                else:
+                    yield _sse({"type": "unavailable", "reason": "empty"})
         except Exception:  # noqa: BLE001 — primary endpoint down/timeout (no fallback)
             yield _sse({"type": "unavailable", "reason": "unreachable"})
 
@@ -565,6 +617,8 @@ class ResearchBundle:
     target: str
     resolution: dict
     customer: dict | None = None
+    active_deal_id: str | None = None
+    active_deal: dict | None = None
     deals: list[dict] = field(default_factory=list)
     activities: list[dict] = field(default_factory=list)
     environment: dict | None = None
@@ -584,7 +638,24 @@ _RESEARCH_PREFIXES = [
     r"^\s*find\s+out\s+about\s+",
     r"^\s*what\s+should\s+i\s+know\s+about\s+",
     r"^\s*use\s+web_search\s+and\s+tell\s+me\s+about\s+",
+    r"^\s*switch\s+to\s+",
 ]
+
+_RESEARCH_CONTEXTS: dict[str, ResearchBundle] = {}
+# Conversation caches (mirror _RESEARCH_CONTEXTS) so a multi-turn session keeps its
+# context across turns: the Assistant remembers the account in focus; Review Coach
+# reuses the built commentary-context package for the same deal instead of rebuilding.
+_CHAT_CONTEXTS: dict[str, dict] = {}        # conversation_id -> {customer_id, customer, deal_id}
+_COACH_CONTEXTS: dict[str, dict] = {}       # conversation_id -> {deal_id, note, r, context_text, meta}
+_DEAL_ID_RE = re.compile(r"\bD\d{3}\b", flags=re.IGNORECASE)
+_FOLLOWUP_RE = re.compile(
+    r"^\s*(what|who|when|why|how|which|are|is|do|does|should)\b|"
+    r"\b(risk|risks|decision maker|last meeting|products?|next|happened|activity|activities)\b|"
+    # Japanese continuation/question cues (no word boundaries in Japanese): follow-ups
+    # about the account already in focus — 次/何をすべき/リスク/直近/決裁 etc.
+    r"(次|今後|何を|どう|なぜ|いつ|誰|リスク|決裁|直近|前回|製品|案件|べき|他には|では)",
+    flags=re.IGNORECASE,
+)
 
 
 def _research_target(message: str) -> str:
@@ -592,6 +663,22 @@ def _research_target(message: str) -> str:
     for pat in _RESEARCH_PREFIXES:
         target = re.sub(pat, "", target, flags=re.IGNORECASE)
     return target.strip(" \t\r\n?？。.")
+
+
+def _deal_id_in_text(message: str) -> str | None:
+    m = _DEAL_ID_RE.search(message or "")
+    return m.group(0).upper() if m else None
+
+
+def _is_followup(message: str, has_context: bool) -> bool:
+    if not has_context or _deal_id_in_text(message):
+        return False
+    text = (message or "").strip()
+    if not text or len(text) > 220:
+        return False
+    if any(re.search(pat, text, flags=re.IGNORECASE) for pat in _RESEARCH_PREFIXES):
+        return False
+    return bool(_FOLLOWUP_RE.search(text))
 
 
 # Japanese research cues. Kept narrow on purpose: paired with a customer-resolution
@@ -668,6 +755,62 @@ def _products_for_deals(deals: list[dict]) -> list[dict]:
     return products
 
 
+def _deal_resolution(deal: dict) -> dict:
+    c = store.get_customer(deal["customer_id"])
+    return {
+        "status": "resolved",
+        "query": deal["deal_id"],
+        "customer": _public_customer(c),
+        "candidates": [],
+    }
+
+
+def _build_deal_context_bundle(message: str, target: str, deal: dict) -> ResearchBundle:
+    customer = store.get_customer(deal["customer_id"])
+    raw_activities = store.activities_for_deal(deal["deal_id"])
+    bundle = ResearchBundle(
+        query=message,
+        target=target,
+        resolution=_deal_resolution(deal),
+        customer=_public_customer(customer),
+        active_deal_id=deal["deal_id"],
+        active_deal=_deal_summary(deal),
+        deals=[_deal_summary(deal)],
+        activities=[_activity_summary(a) for a in raw_activities[:20]],
+        environment=store.get_environment(deal["customer_id"]),
+        products=_products_for_deals([deal]),
+        similar_deals=[_deal_summary(d) for d in find_similar_deals(
+            customer_id=deal["customer_id"],
+            industry=(customer or {}).get("industry", ""),
+        )[:3]],
+    )
+    bundle.provenance.extend([
+        {"source": "active_deal_context", "priority": 1, "deal_id": deal["deal_id"]},
+        {"source": "internal_records", "priority": 1, "status": "found"},
+        {"source": "deals", "priority": 2, "count": 1},
+        {"source": "activities", "priority": 3, "count": len(bundle.activities),
+         "truncated": len(raw_activities) > len(bundle.activities)},
+        {"source": "environment", "priority": 4,
+         "status": "found" if bundle.environment else "not_found"},
+    ])
+    return bundle
+
+
+def _open_deals(deals: list[dict]) -> list[dict]:
+    return [d for d in deals if config.is_open_rank(d.get("order_rank"))]
+
+
+def _deal_choices_answer(deals: list[dict]) -> str:
+    lines = ["この顧客にはアクティブな案件が複数あります。どの案件について調べるか、案件IDで指定してください。"]
+    for d in sorted(deals, key=lambda x: x.get("total_order_amount", 0), reverse=True):
+        s = _deal_summary(d)
+        lines.append(
+            f"- {s['deal_id']}: {s['customer']} / {s['stage']} / "
+            f"¥{s['amount']:,} / {s['product_category']} / health={s['health']['band']}"
+        )
+    return "\n".join(lines)
+
+
 def _source_event(key: str, label: str, status: str, count: int | None = None,
                   detail: str = "") -> str:
     obj = {"type": "source", "key": key, "label": label, "status": status}
@@ -728,7 +871,7 @@ def _ambiguity_answer(candidates: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def research_stream(req: ChatRequest):
+def _legacy_research_stream(req: ChatRequest):
     target = _research_target(req.message)
     yield _sse({"type": "start", "model": config.MODEL,
                 "endpoint": config.BASE_URL, "role": "research"})
@@ -802,6 +945,157 @@ def research_stream(req: ChatRequest):
         yield _sse({"type": "done", "model": config.MODEL})
 
 
+def _emit_bundle_sources(bundle: ResearchBundle, cached: bool = False):
+    yield _source_event("internal_records", "Internal Records", "found", count=1,
+                        detail="cached" if cached else "")
+    yield _source_event("deals", "Deals", "found" if bundle.deals else "not_found",
+                        count=len(bundle.deals), detail="cached" if cached else "")
+    yield _source_event("activities", "Activities",
+                        "found" if bundle.activities else "not_found",
+                        count=len(bundle.activities), detail="cached" if cached else "")
+    yield _source_event("environment", "Environment",
+                        "found" if bundle.environment else "not_found",
+                        detail="cached" if cached else "")
+    yield _source_event("web_search", "Web Search", "skipped",
+                        detail="active_deal_context" if bundle.active_deal_id else "internal_record_found")
+
+
+def _summarize_research_bundle(bundle: ResearchBundle):
+    try:
+        from senpai.llm.client import stream_complete
+        text = ""
+        for piece in stream_complete(
+            [{"role": "user", "content": _research_summary_prompt(bundle)}],
+            temperature=0.2,
+            max_tokens=config.LLM_MAX_TOKENS,
+            no_think=True,
+            allow_fallback=False,
+        ):
+            text += piece
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+        yield _sse({"type": "answer", "text": text or "リサーチ結果を生成できませんでした。"})
+        yield _sse({"type": "done", "model": config.MODEL})
+    except Exception:  # noqa: BLE001 - research must not silently use fallback
+        yield _sse({"type": "unavailable", "reason": "llm_unreachable"})
+        yield _sse({"type": "done", "model": config.MODEL})
+
+
+def research_stream(req: ChatRequest):
+    conversation_id = (getattr(req, "conversation_id", None) or "default").strip() or "default"
+    cached_bundle = _RESEARCH_CONTEXTS.get(conversation_id)
+    target = _research_target(req.message)
+    deal_id = _deal_id_in_text(req.message)
+    use_cached = _is_followup(req.message, bool(cached_bundle))
+
+    yield _sse({"type": "start", "model": config.MODEL,
+                "endpoint": config.BASE_URL, "role": "research",
+                "conversation_id": conversation_id})
+
+    if use_cached and cached_bundle:
+        cached_bundle.query = req.message
+        yield _sse({"type": "context", "status": "active",
+                    "conversation_id": conversation_id,
+                    "deal_id": cached_bundle.active_deal_id,
+                    "customer": cached_bundle.customer,
+                    "cached": True})
+        for ev in _emit_bundle_sources(cached_bundle, cached=True):
+            yield ev
+        yield from _summarize_research_bundle(cached_bundle)
+        return
+
+    if deal_id:
+        deal = store.get_deal(deal_id)
+        if not deal:
+            yield _sse({"type": "resolve", "status": "not_found", "query": deal_id,
+                        "customer": None, "candidates": []})
+            yield _source_event("internal_records", "Internal Records", "not_found")
+            yield _sse({"type": "unavailable", "reason": "deal_not_found"})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+        bundle = _build_deal_context_bundle(req.message, deal_id, deal)
+        _RESEARCH_CONTEXTS[conversation_id] = bundle
+        yield _sse({"type": "resolve", **bundle.resolution})
+        yield _sse({"type": "context", "status": "active",
+                    "conversation_id": conversation_id, "deal_id": deal_id,
+                    "customer": bundle.customer, "cached": False})
+        for ev in _emit_bundle_sources(bundle):
+            yield ev
+        yield from _summarize_research_bundle(bundle)
+        return
+
+    resolution = store.resolve_customer_detailed(target)
+    res_obj = resolution.to_dict()
+    yield _sse({"type": "resolve", **res_obj})
+
+    if resolution.status == "ambiguous":
+        yield _source_event("internal_records", "Internal Records", "ambiguous",
+                            count=len(res_obj["candidates"]))
+        yield _source_event("deals", "Deals", "skipped")
+        yield _source_event("activities", "Activities", "skipped")
+        yield _source_event("environment", "Environment", "skipped")
+        yield _source_event("web_search", "Web Search", "skipped",
+                            detail="ambiguous_customer")
+        yield _sse({"type": "answer", "text": _ambiguity_answer(res_obj["candidates"])})
+        yield _sse({"type": "done", "model": config.MODEL})
+        return
+
+    if resolution.status == "resolved" and resolution.customer:
+        raw_deals = store.deals_for_customer(resolution.customer["customer_id"])
+        active_deals = _open_deals(raw_deals)
+        if len(active_deals) > 1:
+            yield _source_event("internal_records", "Internal Records", "found", count=1)
+            yield _source_event("deals", "Deals", "ambiguous", count=len(active_deals),
+                                detail="multiple_active_deals")
+            yield _source_event("activities", "Activities", "skipped")
+            yield _source_event("environment", "Environment", "skipped")
+            yield _source_event("web_search", "Web Search", "skipped",
+                                detail="select_deal_first")
+            yield _sse({"type": "deal_choices", "status": "ambiguous",
+                        "deals": [_deal_summary(d) for d in active_deals]})
+            yield _sse({"type": "answer", "text": _deal_choices_answer(active_deals)})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+        if len(active_deals) == 1:
+            bundle = _build_deal_context_bundle(req.message, target, active_deals[0])
+            _RESEARCH_CONTEXTS[conversation_id] = bundle
+            yield _sse({"type": "context", "status": "active",
+                        "conversation_id": conversation_id,
+                        "deal_id": bundle.active_deal_id,
+                        "customer": bundle.customer,
+                        "cached": False})
+            for ev in _emit_bundle_sources(bundle):
+                yield ev
+            yield from _summarize_research_bundle(bundle)
+            return
+
+    bundle = _build_research_bundle(req.message, target, resolution)
+
+    if resolution.status == "resolved":
+        for ev in _emit_bundle_sources(bundle):
+            yield ev
+    else:
+        yield _source_event("internal_records", "Internal Records", "not_found")
+        yield _source_event("deals", "Deals", "skipped")
+        yield _source_event("activities", "Activities", "skipped")
+        yield _source_event("environment", "Environment", "skipped")
+        web = web_search_typed(f"{target} company overview latest news")
+        bundle.web = web
+        bundle.provenance.append({"source": "web_search", "priority": 2,
+                                  "status": web.get("status"), "query": web.get("query")})
+        yield _sse({"type": "web", **web})
+        yield _source_event("web_search", "Web Search",
+                            "found" if web.get("status") == "found" else "error",
+                            count=len(web.get("results") or []),
+                            detail=web.get("reason", ""))
+        if web.get("status") != "found":
+            yield _sse({"type": "unavailable",
+                        "reason": "no_internal_record_and_web_unavailable"})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
+
+    yield from _summarize_research_bundle(bundle)
+
+
 class ChatMessage(BaseModel):
     role: str       # "user" | "assistant"
     content: str
@@ -811,6 +1105,7 @@ class ChatRequest(BaseModel):
     message: str
     history: list[ChatMessage] = []          # prior user/assistant turns (no system)
     role: str = "junior"                     # "junior" | "manager"
+    conversation_id: str | None = None
 
 
 @app.post("/api/chat")
@@ -837,7 +1132,36 @@ def chat(req: ChatRequest):
 
     tools, system_fn = _CHAT_ROLES.get(req.role, _CHAT_ROLES["junior"])
 
-    convo: list[dict] = [{"role": "system", "content": system_fn()}]
+    # Conversation context cache: remember the account in focus so follow-ups that
+    # don't re-name the customer ("what should I do next?", "what happened recently
+    # with this account?") stay scoped to the same customer. This also drives the
+    # Phase-1 account-scoped retrieval: the cached customer is injected into the
+    # system prompt so the model passes it to search_notes.
+    conversation_id = (req.conversation_id or "default").strip() or "default"
+    cached_ctx = _CHAT_CONTEXTS.get(conversation_id)
+    cust = store.match_customer_in_text(req.message)
+    msg_deal = _deal_id_in_text(req.message)
+    active: dict | None = None
+    cached_flag = False
+    if cust:
+        active = {"customer_id": cust["customer_id"], "customer": cust.get("name"),
+                  "deal_id": msg_deal or (cached_ctx or {}).get("deal_id")}
+    elif msg_deal and (d := store.get_deal(msg_deal)):
+        active = {"customer_id": d["customer_id"],
+                  "customer": store.customer_name(d["customer_id"]), "deal_id": msg_deal}
+    elif cached_ctx and _is_followup(req.message, True):
+        active, cached_flag = cached_ctx, True
+    if active and active.get("customer_id"):
+        _CHAT_CONTEXTS[conversation_id] = active
+
+    system = system_fn()
+    if active and active.get("customer"):
+        focus = active["customer"] + (f"（案件 {active['deal_id']}）" if active.get("deal_id") else "")
+        system += (f"\n\n【現在の対象顧客】{focus}。アカウント固有の質問では、"
+                   f"search_notes に customer='{active['customer']}' を渡し、この顧客の"
+                   f"記録に限定して回答すること。")
+
+    convo: list[dict] = [{"role": "system", "content": system}]
     for m in req.history:
         if m.role in ("user", "assistant") and m.content:
             convo.append({"role": m.role, "content": m.content})
@@ -846,7 +1170,13 @@ def chat(req: ChatRequest):
     def gen():
         from senpai.llm.client import stream_chat_turn  # lazy: keep import light
         yield _sse({"type": "start", "model": config.MODEL,
-                    "endpoint": config.BASE_URL, "role": req.role})
+                    "endpoint": config.BASE_URL, "role": req.role,
+                    "conversation_id": conversation_id})
+        if active:
+            yield _sse({"type": "context", "status": "active",
+                        "conversation_id": conversation_id,
+                        "customer": active.get("customer"),
+                        "deal_id": active.get("deal_id"), "cached": cached_flag})
         try:
             for ev in stream_chat_turn(convo, tools=tools):
                 yield _sse(ev)

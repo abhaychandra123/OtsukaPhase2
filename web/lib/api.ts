@@ -95,7 +95,7 @@ export const api = {
 export type NarrateEvent =
   | { type: "start"; model?: string; endpoint?: string }
   | { type: "thinking"; chars: number }
-  | { type: "context"; grounded: boolean; customer?: string | null; deal_id?: string | null }
+  | { type: "context"; grounded: boolean; customer?: string | null; deal_id?: string | null; cached?: boolean }
   | { type: "delta"; text: string }
   | { type: "done"; model?: string }
   | { type: "fallback" }
@@ -111,14 +111,15 @@ export async function narrateStream(
   note: string,
   deal_id: string | undefined,
   onEvent: (e: NarrateEvent) => void,
-  opts?: { lang?: "ja" | "en"; signal?: AbortSignal },
+  opts?: { lang?: "ja" | "en"; signal?: AbortSignal; conversationId?: string },
 ): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/coach/narrate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ note, deal_id, narrate: true, lang: opts?.lang ?? "ja" }),
+      body: JSON.stringify({ note, deal_id, narrate: true, lang: opts?.lang ?? "ja",
+                             conversation_id: opts?.conversationId }),
       cache: "no-store",
       signal: opts?.signal,
     });
@@ -142,10 +143,30 @@ export async function narrateStream(
 // `tool` event before the final `answer`.
 export type ChatRole = "junior" | "manager" | "research";
 
+// One retrieval event surfaced by a tool — the Retrieval Explorer's data.
+export interface RetrievalItem {
+  id: string;
+  customer?: string | null;
+  customer_id?: string;
+  score: number;
+  text?: string;
+}
+export interface RetrievalTrace {
+  source: string;            // "notes_semantic" | "knowledge_keyword" | "graph"
+  scope: string;             // "account:<id>" | "all"
+  items: RetrievalItem[];
+  query?: string;
+  mode?: string;
+  customer?: string | null;
+  intent?: string;
+}
+
 export type ChatEvent =
   | { type: "start"; model?: string; endpoint?: string; role?: ChatRole }
-  | { type: "tool"; name: string; args: string; result: string }
+  | { type: "tool"; name: string; args: string; result: string; retrieval?: RetrievalTrace[] }
   | { type: "resolve"; status: "resolved" | "ambiguous" | "not_found"; query: string; customer?: unknown; candidates?: unknown[] }
+  | { type: "context"; status: "active"; conversation_id?: string; deal_id?: string | null; customer?: unknown; cached?: boolean }
+  | { type: "deal_choices"; status: "ambiguous"; deals: unknown[] }
   | { type: "source"; key: string; label: string; status: "found" | "not_found" | "ambiguous" | "skipped" | "error"; count?: number; detail?: string }
   | { type: "web"; status: "found" | "not_found" | "error"; query: string; answer?: string; results?: { title?: string; url?: string; content?: string }[]; live?: boolean; reason?: string }
   | { type: "delta"; text: string }
@@ -168,14 +189,14 @@ export async function chatStream(
   history: ChatTurn[],
   role: ChatRole,
   onEvent: (e: ChatEvent) => void,
-  opts?: { signal?: AbortSignal },
+  opts?: { signal?: AbortSignal; conversationId?: string },
 ): Promise<void> {
   let res: Response;
   try {
     res = await fetch(`${BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history, role }),
+      body: JSON.stringify({ message, history, role, conversation_id: opts?.conversationId }),
       cache: "no-store",
       signal: opts?.signal,
     });

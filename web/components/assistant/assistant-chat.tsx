@@ -6,9 +6,10 @@ import {
   FileText, Globe, Layers, Loader2, Mail, Receipt, Route, Search, Send,
   ShieldCheck, Sparkles, UserSearch, Wrench, type LucideIcon,
 } from "lucide-react";
-import { chatStream, type ChatEvent, type ChatRole, type ChatTurn } from "@/lib/api";
+import { chatStream, type ChatEvent, type ChatRole, type ChatTurn, type RetrievalTrace } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { RetrievalExplorer } from "@/components/assistant/retrieval-explorer";
 
 type ToolCall = { name: string; args: string; result: string };
 type SourceState = {
@@ -25,6 +26,7 @@ type Msg = {
   research?: boolean;         // turn was routed to the research pipeline
   sources?: SourceState[];    // research source ledger
   webUrls?: WebCitation[];    // external citations
+  retrieval?: RetrievalTrace[]; // retrieval explorer trace (per-chunk provenance)
 };
 
 // Human labels + icons for each tool, so the grounding ledger reads like
@@ -84,6 +86,12 @@ const EXAMPLES: Record<"junior" | "manager", Record<"ja" | "en", string[]>> = {
   },
 };
 
+// Stable per-session id for conversation caching (crypto.randomUUID when available).
+function makeConversationId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `conv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export function AssistantChat({ role }: { role: "junior" | "manager" }) {
   const { t, lang } = useT();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -92,6 +100,9 @@ export function AssistantChat({ role }: { role: "junior" | "manager" }) {
   const [model, setModel] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // One conversation id per chat session, so the backend can keep the account in
+  // focus across turns ("what should I do next?" stays scoped to this customer).
+  const convIdRef = useRef<string>(makeConversationId());
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -136,7 +147,11 @@ export function AssistantChat({ role }: { role: "junior" | "manager" }) {
           if (e.role === "research") patch((m) => ({ ...m, research: true, sources: [] }));
           break;
         case "tool":
-          patch((m) => ({ ...m, tools: [...m.tools, { name: e.name, args: e.args, result: e.result }] }));
+          patch((m) => ({
+            ...m,
+            tools: [...m.tools, { name: e.name, args: e.args, result: e.result }],
+            retrieval: e.retrieval ? [...(m.retrieval ?? []), ...e.retrieval] : m.retrieval,
+          }));
           break;
         case "source":
           patch((m) => ({
@@ -173,7 +188,7 @@ export function AssistantChat({ role }: { role: "junior" | "manager" }) {
           patch((m) => ({ ...m, status: "error" }));
           break;
       }
-    }, { signal: ctrl.signal });
+    }, { signal: ctrl.signal, conversationId: convIdRef.current });
 
     // Stream ended without an answer → surface a clear error.
     patch((m) => (m.status === "running" || (!answered && !m.content)
@@ -262,7 +277,7 @@ export function AssistantChat({ role }: { role: "junior" | "manager" }) {
         {messages.length > 0 && (
           <button
             type="button"
-            onClick={() => { setMessages([]); setInput(""); }}
+            onClick={() => { setMessages([]); setInput(""); convIdRef.current = makeConversationId(); }}
             disabled={busy}
             className="h-[44px] rounded-lg border border-border bg-card px-3 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
@@ -353,6 +368,11 @@ function MessageBubble({ m, t, lang }: { m: Msg; t: (k: string) => string; lang:
             })}
           </div>
         </details>
+      )}
+
+      {/* Retrieval Explorer — per-chunk provenance, scope and scores */}
+      {m.retrieval && m.retrieval.length > 0 && (
+        <RetrievalExplorer traces={m.retrieval} open={running} lang={lang} />
       )}
 
       {/* Answer */}
