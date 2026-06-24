@@ -10,6 +10,7 @@ here, so the data model lives in exactly one place.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from functools import lru_cache
 from typing import Literal
@@ -353,6 +354,17 @@ def resolve_customer(query: str) -> dict | None:
     return resolve_customer_detailed(query).customer
 
 
+def _key_in_text(key: str, low_text: str) -> bool:
+    """Whether an alias `key` occurs in `low_text`. ASCII/romaji keys require WORD
+    boundaries so 'new' does not match inside 'news' and 'canon' would not match
+    'canonical' — latin words run together with spaces, so bare substring matching
+    produces false customers. Japanese keys keep substring matching (JA has no word
+    boundaries, and names are contiguous), e.g. '村田印刷' inside '村田印刷さん'."""
+    if key.isascii():
+        return re.search(r"\b" + re.escape(key) + r"\b", low_text) is not None
+    return key in low_text
+
+
 def match_customer_in_text(text: str) -> dict | None:
     """Find the customer named anywhere in free text — across JA, English, romaji
     and alias forms. Longest match wins (so 'Aozora Services' beats 'Aozora', and
@@ -361,7 +373,7 @@ def match_customer_in_text(text: str) -> dict | None:
     low = (text or "").lower()
     best: tuple[int, set[str]] | None = None
     for key, ids in _alias_index().items():
-        if key in low and (best is None or len(key) > best[0]):
+        if _key_in_text(key, low) and (best is None or len(key) > best[0]):
             best = (len(key), ids)
     if best and len(best[1]) == 1:
         return get_customer(next(iter(best[1])))
@@ -377,11 +389,34 @@ def ambiguous_match_in_text(text: str) -> list[dict]:
     low = (text or "").lower()
     best: tuple[int, set[str]] | None = None
     for key, ids in _alias_index().items():
-        if key in low and (best is None or len(key) > best[0]):
+        if _key_in_text(key, low) and (best is None or len(key) > best[0]):
             best = (len(key), ids)
     if best and len(best[1]) > 1:
         return [c for cid in sorted(best[1]) if (c := get_customer(cid))]
     return []
+
+
+def resolve_customer_in_text(text: str) -> CustomerResolution:
+    """Resolve the customer NAMED ANYWHERE in free text — preserving ambiguity as
+    a first-class state. Unlike resolve_customer_detailed (which treats the whole
+    query as the name), this locates the customer token inside an action/verb-
+    wrapped message: 'create a quotation for akebono' → ambiguous (3 あけぼの
+    companies), not not_found. So callers (e.g. research) reach internal records
+    instead of falling through to web search on a phrased request."""
+    uniq = match_customer_in_text(text)
+    if uniq:
+        return CustomerResolution(status="resolved", query=text, customer=uniq)
+    amb = ambiguous_match_in_text(text)
+    if amb:
+        low = (text or "").lower()
+        best_key = ""
+        for key, ids in _alias_index().items():
+            if _key_in_text(key, low) and len(ids) > 1 and len(key) > len(best_key):
+                best_key = key
+        return CustomerResolution(
+            status="ambiguous", query=text,
+            candidates=[_candidate(c["customer_id"], best_key) for c in amb])
+    return CustomerResolution(status="not_found", query=text)
 
 
 # --- fallback resolution: fuzzy matching + company-name extraction ----------

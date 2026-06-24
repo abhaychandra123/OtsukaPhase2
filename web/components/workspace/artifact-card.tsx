@@ -1,25 +1,12 @@
 "use client";
 
-// Workspace artifact dispatcher — renders any Artifact by kind. The single
-// place a thread turns a typed Artifact into a pinned card. Phase 1 implements
-// `review`; `account_brief` and `research` render a minimal placeholder until
-// Phase 3 ports their dedicated renderers.
+// Workspace artifact dispatcher — every kind now renders through one unified
+// ArtifactBody (kind-aware header + alert + commentary placement). The three
+// per-kind card files were collapsed into ArtifactBody to stop them drifting.
 
 import type { Artifact } from "@/lib/artifacts";
-import { ReviewCard } from "./cards/review-card";
-
-import { AccountCard } from "./cards/account-card";
-import { ResearchCard } from "./cards/research-card";
+import { ArtifactBody } from "./cards/artifact-body";
 
 export function ArtifactCard({ artifact }: { artifact: Artifact }) {
-  switch (artifact.kind) {
-    case "review":
-      return <ReviewCard artifact={artifact} />;
-    case "account_brief":
-      return <AccountCard artifact={artifact} />;
-    case "research":
-      return <ResearchCard artifact={artifact} />;
-    default:
-      return null;
-  }
+  return <ArtifactBody artifact={artifact} />;
 }

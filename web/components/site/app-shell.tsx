@@ -39,6 +39,7 @@ const NAV: Record<Role, NavItem[]> = {
   manager: [
     { href: "/manager", key: "nav.dashboard", icon: LayoutDashboard },
     { href: "/manager/assistant", key: "nav.assistant", icon: MessagesSquare },
+    { href: "/manager/workspace", key: "nav.workspace", icon: LayoutPanelLeft },
     { href: "/manager/pipeline", key: "nav.pipeline", icon: ListTree },
     { href: "/manager/accounts", key: "nav.accounts", icon: Building2 },
     { href: "/manager/coaching", key: "nav.coaching", icon: Lightbulb },

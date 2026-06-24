@@ -20,20 +20,26 @@ import {
   ChevronRight,
   CornerDownLeft,
   GraduationCap,
+  Paperclip,
   Sparkles,
+  Square,
   TerminalSquare,
+  Trash2,
   UserRound,
 } from "lucide-react";
-import { api, narrateStream, chatStream, accountCommentaryStream, type ResolveCandidate } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { api, narrateStream, chatStream, accountCommentaryStream, type ResolveCandidate, type ChatTurn as ChatHistoryTurn } from "@/lib/api";
 import { assembleReviewArtifact, assembleAccountArtifact, assembleResearchArtifact, type Artifact, type ArtifactStatus, type EntityRef, type ResearchSourceLine } from "@/lib/artifacts";
-import type { CoachExample, DealRow } from "@/lib/types";
+import type { CoachExample, DealRow, Principle } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { customerText, coachExampleText } from "@/lib/content-i18n";
-import { useCachedState, useCachedConversationId } from "@/lib/chat-store";
+import { useCachedState, useCachedConversationId, getCached } from "@/lib/chat-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ArtifactCard } from "./artifact-card";
+import { MessageBubble, type Msg } from "@/components/assistant/message";
+import { ExperiencePanel } from "@/components/coach/similar-cases";
 import { parseInput } from "./slash";
 
 // --- thread model -----------------------------------------------------------
@@ -42,7 +48,7 @@ type AccountPickCandidate = { customer_id: string; name: string };
 type WMsg =
   | { id: number; role: "user"; text: string; dealLabel?: string }
   | { id: number; role: "system"; text: string }
-  | { id: number; role: "assistant"; text: string; forcedEntity?: EntityRef }
+  | { id: number; role: "assistant"; text: string; history: ChatHistoryTurn[]; answer?: string }
   | { id: number; role: "loading" }
   | { id: number; role: "account_pick"; query: string; candidates: AccountPickCandidate[]; suggestedId?: string | null }
   | { id: number; role: "skill"; kind: "review"; note: string; dealId?: string; artifact: Artifact }
@@ -209,10 +215,11 @@ const SlashPicker = React.forwardRef<
 // instead of re-streaming. Auto-start fires exactly once per card (cached
 // `started` across navigation; a ref guards StrictMode's double-invoked effect).
 function ReviewTurn({
-  artifact, note, dealId, onPick,
+  turnId, artifact, note, dealId, principles, onPick,
 }: {
-  artifact: Artifact; note: string; dealId?: string;
-  onPick: (note: string, dealId: string, name: string) => void;
+  turnId: number; artifact: Artifact; note: string; dealId?: string;
+  principles: Principle[];
+  onPick: (turnId: number, dealId: string, name: string) => void;
 }) {
   const { lang } = useT();
   const key = artifact.id;
@@ -222,7 +229,6 @@ function ReviewTurn({
   const [groundedName, setGroundedName] = useCachedState<string | null>(`ws:art:${key}:gname`, null);
   const [groundedDeal, setGroundedDeal] = useCachedState<string | null>(`ws:art:${key}:gdeal`, null);
   const [candidates, setCandidates] = useCachedState<ResolveCandidate[]>(`ws:art:${key}:cands`, []);
-  const convId = useCachedConversationId(`ws:art:${key}:conv`);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -245,7 +251,7 @@ function ReviewTurn({
           break;
         // done | unavailable | error → handled after the stream resolves
       }
-    }, { lang, conversationId: convId.current }).then(() => {
+    }, { lang, conversationId: artifact.threadId }).then(() => {
       setDone(true);
       if (!acc) setCommentary(null);
     });
@@ -260,35 +266,52 @@ function ReviewTurn({
       : undefined);
   const merged: Artifact = { ...artifact, commentary, status, entity };
 
+  // Customer still ambiguous → the rep must pick BEFORE we read anything. Show
+  // only the picker (no card, no senior's read — the backend hasn't generated
+  // one). Picking resolves THIS turn in place (re-runs grounded on the choice),
+  // so the conversation stays in the same thread instead of spawning a new one.
+  if (candidates.length > 0) {
+    return (
+      <div className="rounded-xl border border-band-yellow/40 bg-band-yellow/[0.06] p-4">
+        <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-band-yellow">
+          <UserRound className="h-3.5 w-3.5" />
+          {candidates.length === 1
+            ? (lang === "ja"
+                ? "メモの社名は次の顧客に近い表記です。この顧客で合っていますか？"
+                : "The name in the note is close to this customer — did you mean them?")
+            : (lang === "ja"
+                ? "メモの社名が複数の顧客に一致しました。どの顧客ですか？"
+                : "The name in the note matches several customers — which one?")}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {candidates.map((c) => (
+            <button
+              key={c.customer_id}
+              onClick={() => onPick(turnId, c.deal_id ?? "", c.name)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+              {customerText(lang, c.name).text}
+              {c.deal_id && <span className="font-mono text-[10px] text-muted-foreground">{c.deal_id}</span>}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2.5 text-[11px] text-muted-foreground">
+          {lang === "ja"
+            ? "選択するとこのレビューがその顧客で読み込まれます。"
+            : "Pick one and this same review fills in for that customer."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      {/* Ambiguous customer — the note's name matched several accounts. Surface
-          them so the rep picks one (re-runs the review grounded on that deal),
-          rather than the system guessing one company's facts. */}
-      {candidates.length > 0 && (
-        <div className="rounded-xl border border-band-yellow/40 bg-band-yellow/[0.06] p-4">
-          <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-band-yellow">
-            <UserRound className="h-3.5 w-3.5" />
-            {lang === "ja"
-              ? "メモの社名が複数の顧客に一致しました。どの顧客ですか？"
-              : "The name in the note matches several customers — which one?"}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {candidates.map((c) => (
-              <button
-                key={c.customer_id}
-                onClick={() => onPick(note, c.deal_id ?? "", c.name)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
-              >
-                <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-                {customerText(lang, c.name).text}
-                {c.deal_id && <span className="font-mono text-[10px] text-muted-foreground">{c.deal_id}</span>}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       <ArtifactCard artifact={merged} />
+      {/* Experience pillar — past cases + relevant principles (collapsed, lazy).
+          Only meaningful once grounded on a customer; matches the standalone
+          Review Coach's "Similar Past Cases" + principle provenance. */}
+      {principles.length > 0 && <ExperiencePanel note={note} dealId={dealId} principles={principles} />}
     </div>
   );
 }
@@ -313,7 +336,7 @@ function AccountTurn({ artifact, customerId }: { artifact: Artifact; customerId:
           setCommentary(acc);
           break;
       }
-    }, { lang }).then(() => {
+    }, { lang, conversationId: artifact.threadId }).then(() => {
       setDone(true);
       if (!acc) setCommentary(null);
     });
@@ -334,7 +357,6 @@ function ResearchTurn({ artifact, query, entity }: { artifact: Artifact; query: 
   const [webUrls, setWebUrls] = useCachedState<string[]>(`ws:art:${key}:web`, []);
   const [done, setDone] = useCachedState<boolean>(`ws:art:${key}:done`, false);
   const [started, setStarted] = useCachedState<boolean>(`ws:art:${key}:started`, false);
-  const convId = useCachedConversationId(`ws:art:${key}:conv`);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -362,7 +384,7 @@ function ResearchTurn({ artifact, query, entity }: { artifact: Artifact; query: 
           setCommentary(acc);
           break;
       }
-    }, { conversationId: convId.current }).then(() => {
+    }, { conversationId: artifact.threadId }).then(() => {
       setDone(true);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -379,57 +401,148 @@ function ResearchTurn({ artifact, query, entity }: { artifact: Artifact; query: 
   return <ArtifactCard artifact={merged} />;
 }
 
-function ChatTurn({ message, forcedEntity, onContext }: { message: string; forcedEntity?: EntityRef; onContext: (label: string) => void }) {
-  const [commentary, setCommentary] = useCachedState<string | null>(`ws:chat:${message}:ans`, null);
-  const [started, setStarted] = useCachedState<boolean>(`ws:chat:${message}:started`, false);
-  const convId = useCachedConversationId(`ws:chat:${message}:conv`);
+// A general chat turn. Streams one assistant reply over the SHARED thread
+// conversation id, with the real prior turns threaded as history — so "what
+// should I do about this?" sees the conversation (and the account a /review or
+// /account brief put in focus on the server). No regex follow-up heuristic and
+// no fake "[Context: …]" line: continuity is real conversation, not a guess.
+//
+// Renders the SAME grounded bubble as the standalone Assistant (tool ledger,
+// grounding/routing badges, retrieval explorer, research source ledger, web
+// citations, markdown) by capturing the full event stream into a Msg — so the
+// Workspace chat is the Assistant, not a stripped single-shot.
+const EMPTY_MSG: Msg = { role: "assistant", content: "", tools: [], status: "running" };
+
+function ChatTurn({
+  turnId, message, history, role, conversationId, onDone, onPick,
+}: {
+  turnId: number; message: string; history: ChatHistoryTurn[];
+  role: "junior" | "manager"; conversationId: string;
+  onDone: (text: string) => void;
+  onPick: (c: ResolveCandidate, query: string) => void;
+}) {
+  const { t, lang } = useT();
+  const [msg, setMsg] = useCachedState<Msg>(`ws:chat:${turnId}:msg`, EMPTY_MSG);
+  const [started, setStarted] = useCachedState<boolean>(`ws:chat:${turnId}:started`, false);
   const startedRef = useRef(false);
+  const ctrlRef = useRef<AbortController | null>(null);
+  const abortedRef = useRef(false);
 
   useEffect(() => {
     if (startedRef.current || started) return;
     startedRef.current = true;
     setStarted(true);
-    let acc = "";
-    
-    const history: import("@/lib/api").ChatTurn[] = [];
-    if (forcedEntity) {
-      history.push({ role: "assistant", content: `[Context: currently discussing ${forcedEntity.name}]` });
-    }
-    
-    chatStream(message, history, "junior", (e) => {
+    const ctrl = new AbortController();
+    ctrlRef.current = ctrl;
+    const patch = (fn: (m: Msg) => Msg) => setMsg((prev) => fn(prev));
+    chatStream(message, history, role, (e) => {
       switch (e.type) {
-        case "context":
-          if (e.status === "active" && e.customer) {
-            onContext(e.customer as string);
-          }
+        case "start":
+          if (e.role === "research") patch((m) => ({ ...m, research: true, sources: [] }));
+          break;
+        case "tool":
+          patch((m) => ({
+            ...m,
+            tools: [...m.tools, { name: e.name, args: e.args, result: e.result }],
+            retrieval: e.retrieval ? [...(m.retrieval ?? []), ...e.retrieval] : m.retrieval,
+          }));
+          break;
+        case "source":
+          patch((m) => ({
+            ...m, research: true,
+            sources: [...(m.sources ?? []).filter((s) => s.key !== e.key),
+              { key: e.key, label: e.label, status: e.status, count: e.count, detail: e.detail }],
+          }));
+          break;
+        case "web":
+          patch((m) => ({ ...m, webUrls: (e.results ?? []).filter((r) => r.url).map((r) => ({ title: r.title, url: r.url })) }));
+          break;
+        case "routing":
+          patch((m) => ({ ...m, routing: { think: e.think, reason: e.reason, confidence: e.confidence, mode: e.mode } }));
+          break;
+        case "resolve":
+          if (e.status === "ambiguous" && e.candidates?.length)
+            patch((m) => ({ ...m, candidates: e.candidates, query: e.query }));
           break;
         case "delta":
-          acc += e.text;
-          setCommentary(acc);
+          patch((m) => ({ ...m, content: m.content + e.text, status: "running" }));
           break;
         case "answer":
-          if (!acc && e.text) {
-             acc = e.text;
-             setCommentary(acc);
-          }
+          patch((m) => ({ ...m, content: e.text || m.content, status: "done" }));
+          break;
+        case "done":
+          patch((m) => (m.status === "running" && m.content ? { ...m, status: "done" } : m));
+          break;
+        case "unavailable":
+        case "error":
+          // An intentional stop ends the stream as an error too — keep whatever
+          // streamed so far and mark it done, not failed.
+          patch((m) => ({ ...m, status: abortedRef.current ? (m.content ? "done" : "error") : "error" }));
           break;
       }
-    }, { conversationId: convId.current });
+    }, { conversationId, signal: ctrl.signal }).then(() => {
+      ctrlRef.current = null;
+      setMsg((prev) => {
+        const final: Msg = prev.status === "running"
+          ? { ...prev, status: prev.content ? "done" : "error" } : prev;
+        onDone(final.content);
+        return final;
+      });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!commentary && !started) return null;
+  const stop = () => { abortedRef.current = true; ctrlRef.current?.abort(); };
+  const running = msg.status === "running";
+
+  if (!msg.content && !msg.tools.length && !msg.sources?.length && running) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="inline-flex items-center gap-2 rounded-xl rounded-tl-sm border border-border bg-card px-4 py-3 text-[13px] text-muted-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+          <Dots /> {t("chat.thinking")}
+        </div>
+        {ctrlRef.current && (
+          <button onClick={stop} className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+            <Square className="h-3 w-3" /> {t("assistant.stop")}
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
-    <div className="rounded-xl border border-primary/20 bg-card p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] text-[13.5px] leading-relaxed text-foreground/90 whitespace-pre-wrap">
-       {commentary || <Dots />}
+    <div className="space-y-1.5">
+      <MessageBubble m={msg} t={t} lang={lang} onPick={(c) => onPick(c, msg.query ?? message)} />
+      {running && ctrlRef.current && (
+        <button onClick={stop} className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+          <Square className="h-3 w-3" /> {t("assistant.stop")}
+        </button>
+      )}
     </div>
   );
 }
 
-const FOLLOWUP_RE = /^(what|who|when|why|how|which|are|is|do|does|should)\b|\b(risk|risks|decision maker|last meeting|products?|next|happened|activity|activities)\b|(次|今後|何を|どう|なぜ|いつ|誰|リスク|決裁|直近|前回|製品|案件|べき|他には|では)/i;
-function isClearFollowup(text: string): boolean {
-  if (text.length > 150) return false;
-  return FOLLOWUP_RE.test(text);
+// Build the chat history the model sees from the visible transcript. User turns
+// and prior chat answers go in verbatim; a skill turn contributes the senior's
+// actual streamed read (labelled with its entity), so chat that follows a review
+// or account brief has the real prior content — not a synthetic breadcrumb.
+function buildChatHistory(messages: WMsg[]): ChatHistoryTurn[] {
+  const h: ChatHistoryTurn[] = [];
+  for (const m of messages) {
+    if (m.role === "user") {
+      h.push({ role: "user", content: m.text });
+    } else if (m.role === "assistant" && m.answer) {
+      h.push({ role: "assistant", content: m.answer });
+    } else if (m.role === "skill") {
+      const name = m.artifact.entity?.name;
+      const head = m.kind === "review" ? "Review" : m.kind === "account_brief" ? "Account brief" : "Research";
+      const label = name ? `${head} — ${name}` : head;
+      const body =
+        getCached<string>(`ws:art:${m.artifact.id}:narr`) ??
+        getCached<string>(`ws:art:${m.artifact.id}:ans`) ?? "";
+      h.push({ role: "assistant", content: body ? `[${label}]\n${body}` : `[${label}]` });
+    }
+  }
+  return h;
 }
 
 // --- account ambiguity picker -----------------------------------------------
@@ -492,9 +605,9 @@ function AccountPickTurn({
 }
 
 export function Workspace({
-  examples, deals, role = "junior",
+  examples, deals, principles = [], role = "junior",
 }: {
-  examples: CoachExample[]; deals: DealRow[]; role?: "junior" | "manager";
+  examples: CoachExample[]; deals: DealRow[]; principles?: Principle[]; role?: "junior" | "manager";
 }) {
   const { t, lang } = useT();
   const [messages, setMessages] = useCachedState<WMsg[]>(`workspace:${role}:thread`, () => []);
@@ -645,29 +758,30 @@ export function Workspace({
     setBusy(false);
   }
 
-  async function runChat(text: string, deal: string) {
+  function runChat(text: string) {
      const clean = text.trim();
      if (!clean || busy) return;
-     const loadingId = nextId();
-     
-     let contextEntity: EntityRef | undefined;
-     for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        if (msg.role === "skill" && msg.artifact.entity) {
-           contextEntity = msg.artifact.entity;
-           break;
-        }
-     }
-     
-     const forceContext = contextEntity && isClearFollowup(clean);
-     const contextLabel = forceContext ? contextEntity?.name : undefined;
-     
+     // Snapshot the conversation BEFORE appending this turn, so the assistant
+     // turn carries the real prior history (shared thread context lives on the
+     // server, keyed by thread.current).
+     const history = buildChatHistory(messages);
+     const replyId = nextId();
      setMessages((m) => [
        ...m,
-       { id: nextId(), role: "user", text: clean, dealLabel: contextLabel },
-       { id: loadingId, role: "assistant", text: clean, forcedEntity: forceContext ? contextEntity : undefined }
+       { id: nextId(), role: "user", text: clean },
+       { id: replyId, role: "assistant", text: clean, history },
      ]);
      setInput("");
+  }
+
+  // Clear the conversation: empty the transcript and mint a fresh thread id so
+  // the server-side conversation context (account in focus, history) starts clean.
+  function clearThread() {
+    if (busy) return;
+    setMessages([]);
+    setInput("");
+    setDealId("");
+    thread.reset();
   }
 
   function submit(raw: string, deal: string) {
@@ -694,17 +808,40 @@ export function Workspace({
     } else if (p.command === "research") {
       runResearch(p.body, deal);
     } else {
-      runChat(p.body || raw.trim(), deal);
+      runChat(p.body || raw.trim());
     }
     setDealId("");
   }
 
-  // Picking an ambiguous candidate re-runs the review grounded on that deal (or,
-  // if it has no open deal, with the full name so it resolves uniquely).
-  const onPick = (note: string, deal: string, name: string) => {
-    if (deal) runReview(note, deal);
-    else runReview(`${name} ${note}`, "");
-  };
+  // Picking an ambiguous candidate resolves the SAME review turn in place: re-run
+  // the coach grounded on the chosen deal (or, if it has no open deal, on the full
+  // name so it resolves uniquely) and swap in the grounded artifact. Because the
+  // artifact id changes, ReviewTurn (keyed on it) remounts and streams the senior's
+  // read for the chosen customer — no new user bubble, no second card, same thread.
+  async function onPick(turnId: number, deal: string, name: string) {
+    if (busy) return;
+    const target = messages.find(
+      (m): m is Extract<WMsg, { role: "skill"; kind: "review" }> =>
+        m.id === turnId && m.role === "skill" && m.kind === "review",
+    );
+    const baseNote = target?.note ?? "";
+    const groundNote = deal ? baseNote : `${name} ${baseNote}`.trim();
+    setBusy(true);
+    const { data, live } = await api.coach(groundNote, deal || undefined);
+    const d = deals.find((x) => x.deal_id === deal);
+    const entity: EntityRef | undefined = deal ? { type: "deal", id: deal, name: d?.customer } : undefined;
+    const artifact = assembleReviewArtifact(data, {
+      threadId: thread.current, turnId: String(turnId), live, entity,
+    });
+    setMessages((m) =>
+      m.map((msg) =>
+        msg.id === turnId && msg.role === "skill" && msg.kind === "review"
+          ? { id: turnId, role: "skill", kind: "review", note: groundNote, dealId: deal || undefined, artifact }
+          : msg,
+      ),
+    );
+    setBusy(false);
+  }
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-3xl flex-col">
@@ -820,9 +957,17 @@ export function Workspace({
           if (m.role === "assistant") {
             return (
               <Row key={m.id} who="senpai" name={t("chat.senpai")}>
-                <ChatTurn message={m.text} forcedEntity={m.forcedEntity} onContext={(label) => {
-                  setMessages((prev) => prev.map((msg) => msg.id === m.id - 1 ? { ...msg, dealLabel: label } : msg));
-                }} />
+                <ChatTurn
+                  turnId={m.id}
+                  message={m.text}
+                  history={m.history}
+                  role={role}
+                  conversationId={thread.current}
+                  onDone={(text) =>
+                    setMessages((prev) => prev.map((msg) => (msg.id === m.id ? { ...msg, answer: text } : msg)))
+                  }
+                  onPick={(c, q) => runChat(`${c.name}：${q}`)}
+                />
               </Row>
             );
           }
@@ -851,7 +996,7 @@ export function Workspace({
           if (m.role === "skill") {
             return (
               <Row key={m.id} who="senpai" name={t("chat.senpai")}>
-                {m.kind === "review" && <ReviewTurn artifact={m.artifact} note={m.note} dealId={m.dealId} onPick={onPick} />}
+                {m.kind === "review" && <ReviewTurn key={m.artifact.id} turnId={m.id} artifact={m.artifact} note={m.note} dealId={m.dealId} principles={principles} onPick={onPick} />}
                 {m.kind === "account_brief" && <AccountTurn artifact={m.artifact} customerId={m.customerId} />}
                 {m.kind === "research" && <ResearchTurn artifact={m.artifact} query={m.query} entity={m.entity} />}
               </Row>
@@ -905,21 +1050,48 @@ export function Workspace({
               className="min-h-[64px] resize-none border-0 bg-transparent font-jp shadow-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between gap-2 px-1 pt-1">
-              <select
-                value={dealId}
-                onChange={(e) => setDealId(e.target.value)}
-                className="h-8 max-w-[60%] rounded-lg border border-input bg-card px-2 text-[12px] text-muted-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              {/* Attach a deal to ground /review (and /research). Subordinate to
+                  the text box, and visibly "on" once a deal is attached. */}
+              <label
+                title={lang === "ja" ? "レビュー対象の案件を指定（任意）" : "Attach a deal to ground /review (optional)"}
+                className={cn(
+                  "flex h-8 max-w-[62%] items-center gap-1.5 rounded-lg border pl-2.5 pr-1 text-[12px] transition-colors focus-within:border-primary/50",
+                  dealId
+                    ? "border-primary/40 bg-primary/[0.06] text-primary"
+                    : "border-input bg-muted/40 text-muted-foreground",
+                )}
               >
-                <option value="">{t("coach.none")}</option>
-                {deals.map((d) => (
-                  <option key={d.deal_id} value={d.deal_id}>
-                    {d.deal_id} · {customerText(lang, d.customer).text}
-                  </option>
-                ))}
-              </select>
-              <Button variant="seal" size="sm" disabled={busy || !input.trim()} onClick={() => submit(input, dealId)} className="gap-1.5">
-                {t("chat.send")} <CornerDownLeft className="h-3.5 w-3.5" />
-              </Button>
+                {dealId ? <Paperclip className="h-3.5 w-3.5 shrink-0" /> : <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />}
+                <span className="hidden shrink-0 sm:inline">{lang === "ja" ? "案件" : "Deal"}</span>
+                <select
+                  value={dealId}
+                  onChange={(e) => setDealId(e.target.value)}
+                  className="h-8 min-w-0 flex-1 cursor-pointer bg-transparent pr-1 text-[12px] outline-none [&>option]:text-foreground"
+                >
+                  <option value="">{lang === "ja" ? "未選択" : "None"}</option>
+                  {deals.map((d) => (
+                    <option key={d.deal_id} value={d.deal_id}>
+                      {d.deal_id} · {customerText(lang, d.customer).text}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-center gap-2">
+                {messages.length > 0 && (
+                  <button
+                    onClick={clearThread}
+                    disabled={busy}
+                    title={lang === "ja" ? "会話をクリア" : "Clear conversation"}
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-[12px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">{lang === "ja" ? "クリア" : "Clear"}</span>
+                  </button>
+                )}
+                <Button variant="seal" size="sm" disabled={busy || !input.trim()} onClick={() => submit(input, dealId)} className="gap-1.5">
+                  {t("chat.send")} <CornerDownLeft className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
