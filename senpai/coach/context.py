@@ -278,14 +278,30 @@ def build_commentary_context(note: str, deal_id: str | None = None,
             confidence = "high"
             match_method = "deal_id"
 
+    suggested_customer: dict | None = None
     if deal is None:
-        customer, confidence, match_method = _resolve_customer_cascade(note)
-        if customer:
+        cand, confidence, match_method = _resolve_customer_cascade(note)
+        if cand and confidence == "high":
+            customer = cand
             deal = _pick_deal(customer["customer_id"])
+        elif cand:
+            # Near-miss (fuzzy character-similarity or company-name extraction).
+            # Per the trust model we do NOT ground a different company's record on
+            # an uncertain match — e.g. note "Okamoto Electronics" must not pull in
+            # 岡本電機's deal. Surface it as a "did you mean…?" candidate and read
+            # note-only until the rep confirms (clicking re-runs grounded on it).
+            suggested_customer = cand
 
-    # When nothing resolved, the note may still name an AMBIGUOUS stem (one that
-    # maps to several customers). Surface those candidates rather than guess one.
+    # No confident deal yet → offer candidates instead of guessing: an AMBIGUOUS
+    # stem (one name → several customers) OR the single near-miss suggestion.
     candidates = _ambiguous_candidates(note) if deal is None else []
+    near_miss = False
+    if deal is None and not candidates and suggested_customer:
+        d = _pick_deal(suggested_customer["customer_id"])
+        candidates = [{"customer_id": suggested_customer["customer_id"],
+                       "name": suggested_customer.get("name", ""),
+                       "deal_id": d["deal_id"] if d else None}]
+        near_miss = True
 
     meta = {
         "has_customer_context": bool(deal),
@@ -302,18 +318,34 @@ def build_commentary_context(note: str, deal_id: str | None = None,
                 did = f" ({c['deal_id']})" if c.get("deal_id") else ""
                 return f"{c['name']}{did}"
             listing = "、".join(_label(c, lang == "en") for c in candidates)
-            no_match_note = (
-                f"メモ内の社名が複数の顧客に一致し、特定できませんでした（候補: {listing}）。"
-                "どの顧客か確定できないため、顧客固有の事実・履歴・数字・案件状況は一切"
-                "述べないでください。メモのテキストとコーチの所見のみに基づいて読み、"
-                "どの顧客の件か確認するよう促してください。"
-                if lang != "en" else
-                f"AMBIGUOUS CUSTOMER — the name in the note matches several customers "
-                f"(candidates: {listing}). It cannot be resolved to one, so do NOT state "
-                "any customer-specific facts, history, numbers, or deal status. Read from "
-                "the note and coach findings only, and prompt the rep to confirm which "
-                "customer (or attach the deal)."
-            )
+            if near_miss:
+                # One near-miss suggestion — the note's name is CLOSE to a known
+                # customer but not an exact match. Suggest, do not attribute.
+                no_match_note = (
+                    f"メモ内の社名は既知の顧客「{listing}」に似ていますが、完全一致では"
+                    "ありません。別の会社の可能性があるため、その顧客固有の事実・履歴・"
+                    "数字・案件状況は一切述べないでください。メモのテキストとコーチの所見"
+                    "のみに基づいて読み、その顧客で合っているか確認するよう促してください。"
+                    if lang != "en" else
+                    f"NEAR-MATCH ONLY — the name in the note is similar to a known "
+                    f"customer ({listing}) but is NOT an exact match, so it may be a "
+                    "different company. Do NOT state that customer's facts, history, "
+                    "numbers, or deal status. Read from the note and coach findings "
+                    "only, and ask the rep to confirm whether that is the right customer."
+                )
+            else:
+                no_match_note = (
+                    f"メモ内の社名が複数の顧客に一致し、特定できませんでした（候補: {listing}）。"
+                    "どの顧客か確定できないため、顧客固有の事実・履歴・数字・案件状況は一切"
+                    "述べないでください。メモのテキストとコーチの所見のみに基づいて読み、"
+                    "どの顧客の件か確認するよう促してください。"
+                    if lang != "en" else
+                    f"AMBIGUOUS CUSTOMER — the name in the note matches several customers "
+                    f"(candidates: {listing}). It cannot be resolved to one, so do NOT state "
+                    "any customer-specific facts, history, numbers, or deal status. Read from "
+                    "the note and coach findings only, and prompt the rep to confirm which "
+                    "customer (or attach the deal)."
+                )
             return no_match_note, meta
         no_match_note = (
             "顧客情報が見つかりませんでした。メモのテキストとコーチの所見のみに"
