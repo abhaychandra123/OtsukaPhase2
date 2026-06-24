@@ -7,10 +7,13 @@ export const dynamic = "force-dynamic";
 // can be compared directly. Reachable at /junior/workspace; not yet promoted in
 // nav (Phase 4). Wires the /review skill over the existing coach + narrate APIs.
 export default async function JuniorWorkspacePage() {
-  const [{ data: ex }, { data: db }] = await Promise.all([
+  const [{ data: ex }, { data: db }, { data: pr }] = await Promise.all([
     api.coachExamples(),
     api.dashboard(),
+    api.principles(),
   ]);
 
-  return <Workspace examples={ex.examples} deals={db.deals} role="junior" />;
+  return (
+    <Workspace examples={ex.examples} deals={db.deals} principles={pr.principles} role="junior" />
+  );
 }

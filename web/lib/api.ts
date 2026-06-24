@@ -174,6 +174,7 @@ export type NarrateEvent =
   | { type: "artifact_meta"; kind: ArtifactKind; entity_ref?: EntityRef }
   | { type: "thinking"; chars: number }
   | { type: "context"; grounded: boolean; customer?: string | null; deal_id?: string | null; cached?: boolean; candidates?: ResolveCandidate[] }
+  | { type: "awaiting_choice" }
   | { type: "delta"; text: string }
   | { type: "done"; model?: string }
   | { type: "fallback" }
@@ -315,12 +316,14 @@ export type AccountCommentaryEvent =
 export async function accountCommentaryStream(
   customerId: string,
   onEvent: (e: AccountCommentaryEvent) => void,
-  opts?: { lang?: "ja" | "en"; signal?: AbortSignal },
+  opts?: { lang?: "ja" | "en"; signal?: AbortSignal; conversationId?: string },
 ): Promise<void> {
   let res: Response;
+  const qs = new URLSearchParams({ lang: opts?.lang ?? "ja" });
+  if (opts?.conversationId) qs.set("conversation_id", opts.conversationId);
   try {
     res = await fetch(
-      `${BASE}/api/account/${encodeURIComponent(customerId)}/commentary?lang=${opts?.lang ?? "ja"}`,
+      `${BASE}/api/account/${encodeURIComponent(customerId)}/commentary?${qs.toString()}`,
       { method: "POST", headers: { "Content-Type": "application/json" },
         cache: "no-store", signal: opts?.signal },
     );

@@ -479,6 +479,12 @@ def coach_narrate(req: CoachRequest):
                                customer_name=ctx_meta.get("customer"),
                                deal_id=ctx_meta.get("deal_id"))
 
+    # Workspace continuity: a grounded review puts its deal/customer "in focus" for
+    # the shared conversation, so a follow-up chat turn stays scoped to it.
+    if ctx_meta.get("has_customer_context"):
+        _seed_chat_focus(conversation_id, ctx_meta.get("customer_id"),
+                         ctx_meta.get("customer"), ctx_meta.get("deal_id"))
+
     def gen():
         from senpai.llm import client
         yield _sse({"type": "start", "model": config.MODEL,
@@ -497,6 +503,15 @@ def coach_narrate(req: CoachRequest):
                     "match_method": ctx_meta.get("match_method", "none"),
                     "candidates": ctx_meta.get("ambiguous_candidates", []),
                     "cached": cached_flag})
+        # Customer still unresolved (the note named an ambiguous / near-miss
+        # company). Don't generate a senior's read yet — the rep must first pick
+        # which customer. Generating now would (a) waste a ~15s call on a read the
+        # rep discards, and (b) show a read before the choice is even made. Stop
+        # after the candidates; the pick re-runs this grounded.
+        if not ctx_meta["has_customer_context"] and ctx_meta.get("ambiguous_candidates"):
+            yield _sse({"type": "awaiting_choice"})
+            yield _sse({"type": "done", "model": config.MODEL})
+            return
         full, emitted, last_think = "", 0, 0
         try:
             for piece in client.stream_complete(
@@ -666,6 +681,29 @@ _RESEARCH_CONTEXTS: dict[str, ResearchBundle] = {}
 _CHAT_CONTEXTS: dict[str, dict] = {}        # conversation_id -> {customer_id, customer, deal_id}
 _COACH_CONTEXTS: dict[str, dict] = {}       # conversation_id -> {deal_id, note, r, context_text, meta}
 _DEAL_ID_RE = re.compile(r"\bD\d{3}\b", flags=re.IGNORECASE)
+
+
+def _seed_chat_focus(conversation_id: str | None, customer_id: str | None,
+                     customer: str | None, deal_id: str | None) -> None:
+    """Cross-seed the chat 'account in focus' from a skill turn (a /review or
+    /account brief) so a later bare chat follow-up — "what should I do about
+    this?" — stays scoped to the same customer even though the user never
+    re-typed the name. This is what makes the Workspace one continuous
+    conversation across skills and chat, rather than a row of isolated requests.
+
+    Deterministic: the focus is the entity the skill already resolved (or the
+    deal's own customer), never a name guess."""
+    if not conversation_id:
+        return
+    if not customer_id and deal_id:
+        d = store.get_deal(deal_id)
+        if d:
+            customer_id = d["customer_id"]
+            customer = customer or store.customer_name(customer_id)
+    if not customer_id:
+        return
+    _CHAT_CONTEXTS[conversation_id] = {
+        "customer_id": customer_id, "customer": customer, "deal_id": deal_id}
 _FOLLOWUP_RE = re.compile(
     r"^\s*(what|who|when|why|how|which|are|is|do|does|should)\b|"
     r"\b(risk|risks|decision maker|last meeting|products?|next|happened|activity|activities)\b|"
@@ -1045,6 +1083,14 @@ def research_stream(req: ChatRequest):
         return
 
     resolution = store.resolve_customer_detailed(target)
+    if resolution.status == "not_found":
+        # The target may be an action/verb-wrapped request ("create a quotation
+        # for akebono") rather than a bare name. Locate the customer named inside
+        # the message so we hit internal records (and surface ambiguity) instead
+        # of falling through to a web search.
+        in_text = store.resolve_customer_in_text(req.message)
+        if in_text.status != "not_found":
+            resolution = in_text
     res_obj = resolution.to_dict()
     yield _sse({"type": "resolve", **res_obj})
 
@@ -1439,7 +1485,8 @@ def account(customer_id: str):
 
 
 @app.post("/api/account/{customer_id}/commentary")
-def account_commentary(customer_id: str, lang: str = "ja"):
+def account_commentary(customer_id: str, lang: str = "ja",
+                       conversation_id: str | None = None):
     """Stream a senior account-manager's read of the whole relationship (SSE).
     Grounded in the deterministic account context package; reasoning disabled for
     low latency, pinned to the primary endpoint (no silent fallback). Event types:
@@ -1459,6 +1506,10 @@ def account_commentary(customer_id: str, lang: str = "ja"):
             media_type="text/event-stream",
         )
     prompt = account_commentary_prompt(context_text, lang=lang)
+
+    # Workspace continuity: pulling an account brief puts that customer "in focus"
+    # for the shared conversation, so a follow-up chat turn stays scoped to it.
+    _seed_chat_focus(conversation_id, customer_id, ctx_meta.get("customer"), None)
 
     def gen():
         from senpai.llm import client
