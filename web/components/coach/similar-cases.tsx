@@ -11,11 +11,24 @@
 import { useEffect, useState } from "react";
 import { Award, ChevronDown, History, Lightbulb, XCircle } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Principle, SimilarCase } from "@/lib/types";
+import type { Confidence, Principle, SimilarCase } from "@/lib/types";
 import { cn, formatYen } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
-import { PRINCIPLE_KEYWORDS, customerText, productCategoryText, principleText } from "@/lib/content-i18n";
+import { PRINCIPLE_KEYWORDS, customerText, productCategoryText, principleText, tagText } from "@/lib/content-i18n";
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
+import { ConfidenceBadge } from "@/components/confidence-badge";
+import { ProvenanceList } from "@/components/provenance";
+
+// A principle's confidence from its approval + interview support (mirrors the
+// standalone Review Coach), so the Experience panel grades the grounding too.
+function principleConfidence(p: Principle): Confidence {
+  if (p.status === "approved" && p.n_interviews >= 2) return "high";
+  if (p.status === "approved") return "low";
+  return "unverified";
+}
 
 export function relevantPrinciples(note: string, principles: Principle[], max = 3): Principle[] {
   const scored = principles.map((p) => {
@@ -128,26 +141,56 @@ function SimilarCasesList({ note, dealId, principles }: { note: string; dealId?:
   );
 }
 
+// Each relevant principle, expandable to its verbatim interview provenance —
+// the "no synthetic expertise" promise the standalone Review Coach made: every
+// lesson traces to an approved, interview-cited principle, quotes and all.
+function PrincipleRef({ p }: { p: Principle }) {
+  const { lang } = useT();
+  return (
+    <AccordionItem value={p.principle_id} className="border-b-0">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+        <AccordionTrigger className="gap-3 px-4 py-3 hover:no-underline">
+          <span className="flex flex-1 flex-col gap-1.5 text-left">
+            <span className="flex items-center gap-2">
+              <span className="font-mono text-[11px] text-muted-foreground">{p.principle_id}</span>
+              <ConfidenceBadge level={principleConfidence(p)} />
+            </span>
+            <span className="block text-[12.5px] font-medium leading-snug text-foreground/90">{principleText(lang, p).text}</span>
+            {p.tags?.length > 0 && (
+              <span className="flex flex-wrap gap-1">
+                {p.tags.slice(0, 3).map((tg) => (
+                  <Badge key={tg} variant="default">#{tagText(lang, tg).text}</Badge>
+                ))}
+              </span>
+            )}
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="px-4">
+          <div className="border-t border-border pt-4">
+            {p.support?.length > 0 ? (
+              <ProvenanceList citations={p.support} />
+            ) : (
+              <p className="text-[12px] text-muted-foreground">
+                {lang === "ja" ? "出典の引用はありません。" : "No verbatim sources on record."}
+              </p>
+            )}
+          </div>
+        </AccordionContent>
+      </div>
+    </AccordionItem>
+  );
+}
+
 function RelevantPrinciples({ note, principles }: { note: string; principles: Principle[] }) {
-  const { t, lang } = useT();
+  const { t } = useT();
   const rel = relevantPrinciples(note, principles);
   if (!rel.length) return null;
   return (
     <div>
       <div className="eyebrow mb-2 flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" /> {t("chat.relevantPrinciples")}</div>
-      <ul className="space-y-2">
-        {rel.map((p) => (
-          <li key={p.principle_id} className="flex gap-2 rounded-xl border border-border bg-card p-3 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-            <span className="mt-[2px] font-mono text-[10px] text-muted-foreground">{p.principle_id}</span>
-            <span className="flex-1 text-[12.5px] leading-snug text-foreground/85">
-              {principleText(lang, p).text}
-              {p.interview_ids?.length > 0 && (
-                <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">({p.interview_ids.join(", ")})</span>
-              )}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <Accordion type="multiple" className="space-y-2">
+        {rel.map((p) => <PrincipleRef key={p.principle_id} p={p} />)}
+      </Accordion>
     </div>
   );
 }

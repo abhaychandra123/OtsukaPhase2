@@ -16,11 +16,14 @@
 import { useState } from "react";
 import {
   AlertTriangle, Bot, Building2, ChevronDown, Database, Eye,
-  Layers, Lightbulb, MessagesSquare, Route, Scale, Search, type LucideIcon,
+  Layers, Lightbulb, MessagesSquare, Route, Scale, Search, Sparkles, type LucideIcon,
 } from "lucide-react";
 import type { Artifact, ArtifactKind, EvidenceRef } from "@/lib/artifacts";
+import type { Confidence } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { SourceChips } from "@/components/source-chip";
+import { ConfidenceBadge } from "@/components/confidence-badge";
 
 const ICONS: Record<string, LucideIcon> = {
   eye: Eye, search: Search, alert: AlertTriangle,
@@ -103,9 +106,34 @@ function Markdown({ text }: { text: string }) {
   );
 }
 
+// A senior-tip line carries its provenance inline:
+//   先輩の知見(出典 PB12・P03 / 確度high): <tip>
+// Parse the 出典/確度 chrome into source chips + a confidence badge so the tip
+// reads as grounded evidence, not a raw string (parity with the Review Coach).
+const SENIOR_RE = /^先輩の知見\(出典 (.+?) \/ 確度(.+?)\): ([\s\S]+)$/;
+
+function SeniorTip({ raw, label }: { raw: string; label: string }) {
+  const m = raw.match(SENIOR_RE);
+  if (!m) return <span className="flex-1">{inlineBold(raw)}</span>;
+  const [, srcs, conf, tip] = m;
+  const ids = srcs.split("・").map((s) => s.trim()).filter((s) => s && s !== "—");
+  return (
+    <div className="flex-1 rounded-lg border border-primary/20 bg-primary/[0.04] p-2.5">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-primary">
+          <Sparkles className="h-3 w-3" /> {label}
+        </span>
+        <SourceChips ids={ids} />
+        <ConfidenceBadge level={(conf.trim() as Confidence) || "unverified"} />
+      </div>
+      <span className="block text-[13px] leading-relaxed text-foreground/90">{inlineBold(tip)}</span>
+    </div>
+  );
+}
+
 function SectionBlock({
-  titleJa, titleEn, icon, body, lang,
-}: { titleJa: string; titleEn: string; icon?: string; body: string[]; lang: "ja" | "en" }) {
+  titleJa, titleEn, icon, body, lang, seniorLabel,
+}: { titleJa: string; titleEn: string; icon?: string; body: string[]; lang: "ja" | "en"; seniorLabel: string }) {
   const Icon = (icon && ICONS[icon]) || Lightbulb;
   if (!body.length) return null;
   return (
@@ -119,12 +147,18 @@ function SectionBlock({
         </span>
       </div>
       <ul className="space-y-2">
-        {body.map((it, i) => (
-          <li key={i} className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground/90">
-            <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-primary/50" />
-            <span className="flex-1">{inlineBold(it)}</span>
-          </li>
-        ))}
+        {body.map((it, i) =>
+          it.startsWith("先輩の知見") ? (
+            <li key={i} className="flex">
+              <SeniorTip raw={it} label={seniorLabel} />
+            </li>
+          ) : (
+            <li key={i} className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground/90">
+              <span className="mt-[6px] h-1 w-1 shrink-0 rounded-full bg-primary/50" />
+              <span className="flex-1">{inlineBold(it)}</span>
+            </li>
+          ),
+        )}
       </ul>
     </div>
   );
@@ -262,7 +296,8 @@ export function ArtifactBody({ artifact }: { artifact: Artifact }) {
       <div className="space-y-3">
         {sections.map((s) => (
           <SectionBlock key={s.key} titleJa={s.titleJa} titleEn={s.titleEn}
-            icon={s.icon} body={s.body} lang={lang} />
+            icon={s.icon} body={s.body} lang={lang}
+            seniorLabel={lang === "ja" ? "先輩の知見" : "Senior's insight"} />
         ))}
       </div>
 

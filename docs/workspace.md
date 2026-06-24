@@ -215,12 +215,49 @@ Assistant be retired too.
 | 1 — Artifact model + `/review` | ✅ done |
 | 2 — `/account`, `/research`, bare chat | ✅ done |
 | 3 — shared memory, unified cards, Experience panel, stop/clear, manager workspace | ✅ done |
-| 4 — flip nav to Workspace-first | ⏳ pending |
-| 5 — delete `assistant/` + `coach/` pages (engines stay) | ⏳ pending |
+| 3.5 — full parity audit + close residual gaps (senior-tip chips, principle provenance/verbatims) | ✅ done |
+| 4 — flip nav to Workspace-first | ✅ done |
+| 5 — delete `assistant/` + `coach/` pages (engines stay) | ✅ done |
 
-Remaining nice-to-have before deletion: port the verbatim-provenance accordion
-for full review parity. The deterministic **engines** (`coach/`, `assistant`
-tool-loop) are *not* going away — only the duplicate pages.
+The standalone pages have been removed. Deleted: `app/junior/assistant/`,
+`app/manager/assistant/`, `app/junior/coach/`, `components/assistant/assistant-chat.tsx`,
+`components/coach/coach-chat.tsx`, and the `nav.assistant` / `nav.coach` sidebar
+entries. **Kept** (the Workspace depends on them): `assistant/message.tsx`,
+`assistant/retrieval-explorer.tsx`, `coach/similar-cases.tsx`, and
+`coach/explainability-card.tsx` (still used by the manager coaching page). The
+deterministic **engines** (`coach/`, `assistant` tool-loop) are *not* going away
+— only the duplicate pages. The junior home quick-action now points at
+`/junior/workspace`; `manager/coaching` (coaching analytics) is unaffected.
+
+### Parity audit (what each old page had vs the Workspace)
+
+**Assistant** — full functional parity. Both surfaces share the same
+`MessageBubble` renderer and the *identical* `chatStream` event handling (tool
+ledger, grounding/routing badges, RetrievalExplorer, research source ledger, web
+citations, ambiguous-customer picker, stop, clear, per-thread `conversationId`).
+Nothing functional is exclusive to the Assistant page. *Minor, non-blocking:* the
+Assistant surfaces curated example chat prompts (incl. manager ones like "team
+pipeline overview") that the Workspace landing doesn't pre-list — the user can
+still type them.
+
+**Review Coach** — parity reached after closing two gaps:
+
+| Coach feature | Workspace |
+|---|---|
+| 6 deterministic lens sections | ✅ artifact sections (`ArtifactBody`) |
+| Reality-check red intercept | ✅ `alertKey: "reality_check"` |
+| Top priority actions | ✅ `priority_actions` section |
+| Streamed senior's read + grounding/model badge | ✅ `ReviewTurn` + `CommentaryBlock` |
+| Ambiguous-customer picker | ✅ in-place pick (re-grounds the same turn — better than the old global-event flow) |
+| Similar past cases | ✅ `ExperiencePanel` → `SimilarCasesList` |
+| Relevant principles | ✅ `ExperiencePanel` → `RelevantPrinciples` |
+| **Senior-tip source chips + confidence badge** | ✅ **now** parsed in `SectionBlock` (`SeniorTip`) — was a raw line |
+| **Principle provenance & verbatim quotes** | ✅ **now** `PrincipleRef` accordion → `ProvenanceList` (interview quotes + `ConfidenceBadge`) |
+
+*Intentional differences (not regressions):* research is an explicit `/research`
+skill rather than the Coach's auto-routed `isResearchQuestion` heuristic; the
+English-mode "view JA original" translation-inspection toggle was dropped (the
+JA source still grounds the answer server-side). Neither blocks removal.
 
 ---
 

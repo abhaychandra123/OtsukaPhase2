@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   FileText,
-  GraduationCap,
   Home,
   LayoutDashboard,
   LayoutPanelLeft,
@@ -15,7 +14,6 @@ import {
   ListTree,
   LogOut,
   type LucideIcon,
-  MessagesSquare,
   ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,8 +27,6 @@ type NavItem = { href: string; key: string; icon: LucideIcon };
 const NAV: Record<Role, NavItem[]> = {
   junior: [
     { href: "/junior", key: "nav.home", icon: Home },
-    { href: "/junior/assistant", key: "nav.assistant", icon: MessagesSquare },
-    { href: "/junior/coach", key: "nav.coach", icon: GraduationCap },
     { href: "/junior/workspace", key: "nav.workspace", icon: LayoutPanelLeft },
     { href: "/junior/accounts", key: "nav.accounts", icon: Building2 },
     { href: "/junior/knowledge", key: "nav.knowledge", icon: Library },
@@ -38,7 +34,6 @@ const NAV: Record<Role, NavItem[]> = {
   ],
   manager: [
     { href: "/manager", key: "nav.dashboard", icon: LayoutDashboard },
-    { href: "/manager/assistant", key: "nav.assistant", icon: MessagesSquare },
     { href: "/manager/workspace", key: "nav.workspace", icon: LayoutPanelLeft },
     { href: "/manager/pipeline", key: "nav.pipeline", icon: ListTree },
     { href: "/manager/accounts", key: "nav.accounts", icon: Building2 },
