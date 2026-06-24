@@ -33,7 +33,7 @@ export default function JuniorHome() {
   const learn = principles.filter((p) => p.n_interviews >= 2 && p.status === "approved").slice(0, 4);
 
   const actions: { href: string; icon: LucideIcon; title: string; desc: string }[] = [
-    { href: "/junior/coach", icon: GraduationCap, title: t("jhome.qa.coach"), desc: t("jhome.qa.coach.desc") },
+    { href: "/junior/workspace", icon: GraduationCap, title: t("jhome.qa.coach"), desc: t("jhome.qa.coach.desc") },
     { href: "/junior/knowledge", icon: Library, title: t("jhome.qa.knowledge"), desc: t("jhome.qa.knowledge.desc") },
     { href: "/junior/reports", icon: FileText, title: t("jhome.qa.reports"), desc: t("jhome.qa.reports.desc") },
   ];
