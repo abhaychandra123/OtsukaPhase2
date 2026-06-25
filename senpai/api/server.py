@@ -102,7 +102,7 @@ def _last_activity_date(acts: list[dict]) -> str | None:
 def _scored_row(d: dict, today: date) -> tuple[dict, list[dict]]:
     acts = store.activities_for_deal(d["deal_id"])
     res = score_deal(d, acts, today=today)
-    flags = deal_flags(d, acts, res.band, today=today)
+    flags = deal_flags(d, acts, health_band=res.band, today=today)
     rep = store.rep_name(store.deal_rep_id(d))
     customer = store.customer_name(d["customer_id"])
     last = _last_activity_date(acts)
@@ -267,7 +267,7 @@ def deal_detail(deal_id: str):
     today = _today()
     acts = store.activities_for_deal(deal_id)
     res = score_deal(d, acts, today=today)
-    flags = deal_flags(d, acts, res.band, today=today)
+    flags = deal_flags(d, acts, health_band=res.band, today=today)
     return {
         "deal": {
             "deal_id": d["deal_id"],
@@ -342,7 +342,7 @@ def coach_review(req: CoachRequest):
     if deal and acts is not None:
         today = _today()
         res = score_deal(deal, acts, today=today)
-        flags = deal_flags(deal, acts, res.band, today=today)
+        flags = deal_flags(deal, acts, health_band=res.band, today=today)
         
         has_optimism_mismatch = any(f.name == "optimism_mismatch" for f in flags)
         rep_likelihood = deal.get("rep_close_likelihood")
