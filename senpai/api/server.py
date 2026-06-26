@@ -1627,6 +1627,10 @@ def account_commentary(customer_id: str, lang: str = "ja",
         yield _sse({"type": "context", "customer": ctx_meta["customer"],
                     "customer_id": customer_id, "score": ctx_meta["score"],
                     "band": ctx_meta["band"]})
+        # Transparency: surface the deterministic strategic stance (tier + region +
+        # the rationale for why it was chosen) so the rep sees it alongside the read.
+        if ctx_meta.get("strategy"):
+            yield _sse({"type": "strategy", **ctx_meta["strategy"]})
         full, emitted = "", 0
         try:
             for piece in client.stream_complete(

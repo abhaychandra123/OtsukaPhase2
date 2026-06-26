@@ -172,11 +172,26 @@ export interface AccountOrder {
   ordered_at: string | null;
 }
 
+export interface AccountStrategy {
+  tier_id: string;
+  tier_label_ja: string;
+  tier_label_en: string;
+  region: string;
+  region_label_ja: string;
+  region_label_en: string;
+  driver_amount: number;
+  directives_ja: string[];
+  directives_en: string[];
+  rationale_ja: string;
+  rationale_en: string;
+}
+
 export interface AccountSummary {
   customer_id: string;
   customer: string;
   industry: string;
   size: string;
+  region: string;
   active_deals: number;
   won_deals: number;
   lost_deals: number;
@@ -188,6 +203,7 @@ export interface AccountSummary {
   recent_orders: AccountOrder[];
   environment: string | null;
   health: AccountHealth;
+  strategy: AccountStrategy;
   risk_signals: AccountPattern[];
   expansion_signals: AccountSignal[];
   recommended_focus: string;

@@ -16,6 +16,7 @@ from senpai.data import store
 from senpai.health.scoring import score_deal
 
 from senpai.account.summary import build_account_summary, AccountSummary
+from senpai.account.strategy import StrategicContext
 
 
 def _yen(n) -> str:
@@ -53,7 +54,8 @@ def build_account_context(customer_id: str, today: date | None = None,
 
     h = s.health
     meta = {"has_account": True, "customer": s.customer, "customer_id": customer_id,
-            "score": h.get("score"), "band": h.get("band")}
+            "score": h.get("score"), "band": h.get("band"),
+            "strategy": s.strategy}
 
     lines: list[str] = []
     lines.append(f"ACCOUNT: {s.customer} (industry: {s.industry}, size: {s.size})")
@@ -104,6 +106,15 @@ def build_account_context(customer_id: str, today: date | None = None,
             lines.append(f"  - {label} — {ev}")
 
     lines.append(f"RECOMMENDED FOCUS (deterministic): {s.recommended_focus}")
+
+    # Strategic stance block — the tier/region posture the read must adopt. The
+    # block carries its own transparent rationale so the model can echo *why*.
+    if s.strategy:
+        try:
+            sc = StrategicContext(**s.strategy)
+            lines.append(sc.as_prompt_block(lang=lang))
+        except TypeError:
+            pass
     return "\n".join(lines), meta
 
 
@@ -125,7 +136,8 @@ def account_commentary_prompt(context_text: str, lang: str = "ja") -> str:
             "**Recommended Focus** — one or two concrete account-level moves.\n\n"
             "Rules: ground every statement in the CONTEXT; quote its numbers EXACTLY "
             "(counts, ¥ amounts, days, score). Refer to risk/expansion signals by "
-            "their [id]. Never invent facts. Be concise: ~120–170 words.\n\n"
+            "their [id]. Adopt the posture in STRATEGIC STANCE and let it shape your "
+            "Recommended Focus. Never invent facts. Be concise: ~120–170 words.\n\n"
             f"ACCOUNT CONTEXT (from records):\n{context_text}"
         )
     return (
@@ -140,6 +152,7 @@ def account_commentary_prompt(context_text: str, lang: str = "ja") -> str:
         "**推奨アクション** — アカウント単位の具体的な一手を1〜2個。\n\n"
         "ルール: すべての記述を文脈の事実に基づかせ、数字（件数・金額・日数・スコア）は"
         "文脈どおり正確に引用すること。リスク/拡大シグナルは [id] で参照すること。"
+        "「戦略スタンス」の姿勢を踏まえ、推奨アクションに反映させること。"
         "事実を創作しないこと。簡潔に、前置きなしで合計160〜240文字程度。\n\n"
         f"アカウント文脈（記録より）:\n{context_text}"
     )

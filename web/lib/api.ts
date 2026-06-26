@@ -15,6 +15,7 @@ import {
 } from "./fixtures";
 import type {
   AccountSummary,
+  AccountStrategy,
   CoachExample,
   CoachingWorkspace,
   CoachResponse,
@@ -350,6 +351,7 @@ export type AccountCommentaryEvent =
   | { type: "start"; model?: string; endpoint?: string }
   | { type: "artifact_meta"; kind: ArtifactKind; entity_ref?: EntityRef }
   | { type: "context"; customer?: string; customer_id?: string; score?: number; band?: string }
+  | ({ type: "strategy" } & AccountStrategy)
   | { type: "delta"; text: string }
   | { type: "done"; model?: string }
   | { type: "unavailable"; reason?: string };

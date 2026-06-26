@@ -204,6 +204,18 @@ export function assembleAccountArtifact(
     });
   }
 
+  if (s.strategy?.tier_id) {
+    const st = s.strategy;
+    sections.push({
+      key: "strategy", titleJa: "戦略スタンス", titleEn: "Strategic stance", icon: "target",
+      body: [
+        `**${ja ? st.tier_label_ja : st.tier_label_en}** · ${ja ? st.region_label_ja : st.region_label_en}`,
+        `_${ja ? st.rationale_ja : st.rationale_en}_`,
+        ...(ja ? st.directives_ja : st.directives_en),
+      ],
+    });
+  }
+
   if (s.recommended_focus) {
     sections.push({
       key: "focus", titleJa: "推奨される注力点", titleEn: "Recommended focus", icon: "scale",

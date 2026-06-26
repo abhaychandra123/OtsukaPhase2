@@ -373,6 +373,15 @@ _SUFFIX: list[tuple[str, list[str]]] = [
 ]
 _INDUSTRY = ["製造", "小売", "医療", "建設", "飲食", "物流", "教育", "不動産", "士業", "IT"]
 _SIZE = ["小規模", "小規模", "小規模", "中規模"]  # weighted toward SMB
+# Region weighting roughly mirrors Otsuka Shokai's footprint: Kanto-heavy, a solid
+# Kansai presence, the rest elsewhere. Derived per-customer from a LOCAL rng keyed
+# on the customer_id so it never disturbs the main `rnd` stream — every other SPR
+# table stays byte-identical when this field is added.
+_REGION = (["関東"] * 5) + (["関西"] * 3) + (["その他"] * 2)
+
+
+def _region_for(customer_id: str) -> str:
+    return random.Random(f"region|{customer_id}").choice(_REGION)
 
 # Anchor customers, keyed by the customer_id they must land on. These pin
 # resolution-behavior fixtures the tests rely on:
@@ -666,6 +675,7 @@ def _make_customers(rnd) -> tuple[list[dict], dict]:
         customers.append({
             "customer_id": cid, "name": name, "industry": industry,
             "size": rnd.choice(_SIZE),
+            "region": _region_for(cid),
             "has_web_presence": rnd.random() < 0.25,   # ~75% SMB → mostly none
             "profile_tags": sorted({industry, rnd.choice(_SIZE),
                                     rnd.choice(["既存", "新規", "紹介"])}),
