@@ -17,7 +17,7 @@ from senpai.data import store
 from senpai.account.health import account_health, AccountHealth
 from senpai.account.trajectory import relationship_trajectory, Pattern
 from senpai.account.expansion import expansion_opportunities, Opportunity
-from senpai.account.strategy import strategic_context
+from senpai.account.strategy import strategic_context, normalize_region
 
 
 @dataclass
@@ -118,7 +118,7 @@ def build_account_summary(customer_id: str, today: date | None = None) -> Accoun
         customer=customer.get("name", customer_id),
         industry=customer.get("industry", "?"),
         size=customer.get("size", "?"),
-        region=customer.get("region", "その他"),
+        region=normalize_region(customer.get("region")),
         active_deals=len(open_deals),
         won_deals=won,
         lost_deals=lost,

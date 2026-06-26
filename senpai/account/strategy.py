@@ -152,18 +152,18 @@ class StrategicContext:
 
     def as_prompt_block(self, lang: str = "ja") -> str:
         """The STRATEGIC STANCE block injected into the commentary prompt."""
+        # Defensive: a hand-corrupted region must not KeyError — fall back to neutral.
+        reg_dir = _REGION_DIRECTIVES.get(self.region, _REGION_DIRECTIVES[REGION_OTHER])
         if lang == "en":
             head = (f"STRATEGIC STANCE (deterministic, from deal size + region): "
                     f"{self.tier_label_en} · {self.region_label_en}")
             why = f"  why: {self.rationale_en}"
-            lines = [f"  - {d}" for d in self.directives_en + [
-                _REGION_DIRECTIVES[self.region]["en"]]]
+            lines = [f"  - {d}" for d in self.directives_en + [reg_dir["en"]]]
         else:
             head = (f"戦略スタンス（案件規模・地域から自動判定）: "
                     f"{self.tier_label_ja} · {self.region_label_ja}")
             why = f"  判定理由: {self.rationale_ja}"
-            lines = [f"  - {d}" for d in self.directives_ja + [
-                _REGION_DIRECTIVES[self.region]["ja"]]]
+            lines = [f"  - {d}" for d in self.directives_ja + [reg_dir["ja"]]]
         return "\n".join([head, why] + lines)
 
 
