@@ -458,42 +458,129 @@ Provenance travels into the file so the workbook stays auditable after it leaves
 
 ---
 
-## 10. Ingestion via Paperclip (`senpai/ingestion/`)
+## 10. Capture via Clip + Ingestion Pipeline
 
-Closes the capture loop: field activity → structured SPR record → live in the engine.
+Closes the capture loop: a rep uploads a voice memo or business-card photo → it becomes a
+structured, editable SPR draft → confirmed records go live in the engine immediately.
 
-### 10.1 Multimodal ingestion pipeline (`ingestion/pipeline.py`, `ingestion/multimodal.py`)
+This is **two separate layers** that were built and integrated this week:
 
-`MultimodalIngestor` processes three input types:
-- **Audio** (voice memos) via Whisper → transcript
-- **Images** (business cards, whiteboards) via Vision/OCR → extracted text
-- **Text** — direct
+### 10.1 Capture via Clip (frontend — `web/components/workspace/workspace.tsx`)
+
+A **paperclip button** in the Workspace input bar (commit `bfdb542`). The user selects an
+`audio/*` or `image/*` file; the workspace immediately posts it to `POST /api/ingest` and
+renders a **`CaptureTurn`** in the thread — a card with five editable fields:
+
+| Field | SPR column |
+|---|---|
+| Activity type (dropdown) | `activity_type` |
+| Daily report | `daily_report` |
+| Contact / business-card info | `business_card_info` |
+| Customer challenge | `customer_challenge` |
+| Product category | `product_major_category` |
+
+Design decisions:
+- **Deliberately mutable** — unlike the immutable skill artifacts (`/review`, `/account`),
+  a capture draft is *meant* to be edited (it will become an SPR record). So it carries the
+  raw `IngestResult`, not an `Artifact`.
+- **Human-in-the-loop** — the draft must be reviewed before saving. Hallucinations from the
+  extraction model are caught here before they touch the store.
+- **Mock badge** — when the multimodal API is offline, extraction returns a mock result; a
+  yellow "モック抽出" badge flags this so the rep knows it needs manual filling.
+- **Copy button** — copies the whole draft as plain text so it can be pasted into an external
+  SPR system if needed.
+- i18n: all labels and toasts are bilingual (`capture.*` keys in `web/lib/i18n.tsx`).
+
+### 10.2 Multimodal ingestion backend (`senpai/ingestion/pipeline.py`, `ingestion/multimodal.py`)
+
+`MultimodalIngestor` handles three modalities:
+- **Audio** (voice memos) → Whisper transcription
+- **Images** (business cards, whiteboards) → Vision/OCR text extraction
+- **Text** — direct pass-through
 
 All modalities feed a structured extraction step (LLM → `ActivityExtraction` Pydantic schema)
-that maps raw input to the exact `sales_activities` fields:
-`activity_type`, `business_card_info`, `product_major_category`, `customer_challenge`, `daily_report`.
-
-### 10.2 Editable draft UI
-
-Extracted data becomes a **Capture card** in the Workspace — all five fields are editable
-before the rep confirms. The human review gate means hallucinations can be corrected before
-they enter the knowledge base.
+that outputs the five SPR fields listed above. Extraction uses the local model endpoint with
+an OpenAI-compatible fallback (`INGEST_BASE_URL`/`INGEST_API_KEY`); offline it returns a
+deterministic skeleton so the frontend always receives a parseable draft.
 
 ### 10.3 Persistence (`ingestion/persist.py`)
 
-`build_activity_record()` produces a record in the **exact seed shape** — fiscal year/quarter
-from the Japanese fiscal calendar (`config.fiscal_year_quarter`), department/division from the
-rep record, `days_since_last_order` / `total_order_count` derived from the customer's orders.
+`build_activity_record()` produces a record in the **exact seed shape** — correcting three
+gaps in the earlier prototype:
+- Fiscal year/quarter from the Japanese fiscal calendar (`config.fiscal_year_quarter`), not mocked.
+- Department/division from the actual rep record, not hardcoded.
+- `days_since_last_order` / `total_order_count` derived from the customer's real order history.
 
 `store.append_activity()` writes to the gitignored overlay (`config.INGESTED_DIR`) and drops
-the `_index` / `_load` caches — the next request reads the new activity like any committed row.
-The committed seed is never touched.
+the `_index` / `_load` caches — the next request reads the ingested activity like any
+committed row. The committed seed is never mutated.
 
 Tests: `tests/test_ingestion_persist.py`.
 
 ---
 
-## 11. Additional Tools Added
+## 11. Knowledge Pipeline (`senpai/knowledge/`)
+
+A full four-layer pipeline for turning senior interview quotes into coaching items that
+juniors can trust — with computed (not authored) confidence and a mandatory human approval gate.
+
+### 11.1 Data model (`knowledge/schema.py`)
+
+Four layers, each a plain dataclass serialised to committed JSON (auditable in a diff, no DB):
+
+| Layer | Object | What it is |
+|---|---|---|
+| 0 | `Source` | A raw interview or survey (`source_id`: I01, I02…) |
+| 1 | `Principle` | A **validated claim** backed by ≥1 cited interview quote — the ground truth GenAI may never exceed |
+| 2 | `GeneratedItem` | A **draft coaching item** (scenario + signals + questions + risks + alternatives) generated from ONE principle |
+| — | `Provenance` | Model, prompt version, generated_at, `grounding_passed` flag |
+| — | `Review` | Status, reviewer, reviewed_at, notes |
+
+**Confidence is computed, never authored:**
+- `CONF_HIGH` — approved + principle backed by ≥2 independent interviews
+- `CONF_MEDIUM` — approved + 1 interview, or corroborated by survey
+- `CONF_LOW` — approved but thinly sourced
+- `CONF_UNVERIFIED` — not approved or failed grounding → **never shown to juniors**
+
+### 11.2 Generation (`knowledge/generate.py`)
+
+`generate_item(principle_id)` → `GeneratedItem` (status: `draft`).
+
+The model receives **only** the validated principle + its source quotes. Hard rules enforced in
+the prompt and verified by `ground_check`:
+1. No new advice/numbers/proper nouns not in the principle.
+2. Scenario may be fictional; signals/questions/risks must be entailed by the principle.
+3. `alternatives` must include 1–2 "it depends" counter-views (no single correct answer).
+
+`ground_check` catches cheap hallucinations before human review: rejects items that contain
+invented numbers (`\d+\s*[%％]|\d[\d,]*\s*円`). Offline fallback: a deterministic skeleton
+item (restates the principle) so the pipeline runs without the model server.
+
+### 11.3 Human review gate (`knowledge/review.py`)
+
+`approve` / `request_edit` / `reject` — the only path an item takes to becoming visible.
+Every transition records who, when, and notes. `approve` forces `grounding_passed=True` if
+a reviewer explicitly overrides a failed ground check (the override is logged in notes).
+`pending()` surfaces draft/needs_edit items with grounding-passed items first, so reviewers
+triage the clean ones fast.
+
+### 11.4 Persistence (`knowledge/store.py`)
+
+Two committed JSON files (`sources.json`, `principles.json`, `generated_items.json`) plus
+sidecar overlay files (`*.ingested.json`) for manager-contributed knowledge — same pattern
+as `senpai/data/store.py` (overlay appended, seed canonical).
+
+Currently: **11 validated principles**, **7 approved coaching items** in the committed seed.
+
+### 11.5 Knowledge Explorer frontend
+
+`web/components/knowledge/knowledge-explorer.tsx` (significantly expanded this week) shows
+principles with verbatim interview provenance, computed-confidence badges, and their derived
+coaching items — each traceable to the exact senior quote it came from.
+
+---
+
+## 12. Additional Tools Added
 
 The tool set grew from 18 to **38 functions** in `senpai/tools/impl.py`.
 
@@ -703,27 +790,6 @@ briefing tests = **+42 new tests** since the start of Week 2.
 
 ---
 
-## 15. Matsuda Context Prototype (`senpai/matsuda/`)
-
-Distinct from the Account Intelligence engine (§4), the **Matsuda Context** is an earlier
-prototype for a "synthesize once, answer many" customer-briefing pattern.
-
-`build_account_context(customer_id) -> AccountContext` pulls all store data for a customer
-once (activities, deals, scoring, flags, similar deals, playbook retrieval) into a single
-persistent `AccountContext` object. Follow-up questions are then answered **purely from that
-synthesized context** — no re-fetching. Key properties:
-
-- Builds a retrieval log that records exactly which sources were consulted and how many rows
-  were found (full auditability).
-- `AccountContext.answer(question)` answers from the frozen context; `to_markdown()` produces
-  an inspectable `report.md`.
-- Hooked into `POST /api/coach/review` and `POST /api/coach/narrate`: requests containing
-  "matsuda" or "松田" are intercepted and routed to the `MatsudaContext` engine instead of
-  the normal LLM pipeline, avoiding the "NO MATCHING CUSTOMER" ambiguity issue.
-- Streamlit demo: `senpai/apps/matsuda_demo.py` + `pages/4_Matsuda_Demo.py`.
-
----
-
 ## 16. Retrieval Observability — Retrieval Explorer
 
 **`senpai/retrieval/trace.py`** is a per-turn observability buffer using Python's `ContextVar`
@@ -770,9 +836,6 @@ even though the corpus is 520.
 | `customer_aliases.json` | 150 | English/romaji alias forms |
 | `coaching_threads.json` | 43 threads | Manager↔rep chat on flagged deals |
 
-**Knowledge seed expanded:** `senpai/knowledge/seed/generated_items.json` grew from 12 → 177
-coaching items (165 new items added — derived from the 11 validated senior principles).
-
 Documented in `docs/synthetic_dataset.md` (new file this week).
 
 ---
@@ -787,13 +850,13 @@ Documented in `docs/synthetic_dataset.md` (new file this week).
 | API latency (coaching) | ~7.5s | **~140ms (~54×)** |
 | Synthetic dataset (deals) | 60 | **520 (3-year history)** |
 | Synthetic dataset (activities) | 186 | **2,337** |
-| Knowledge coaching items | 12 | **177** |
+| Knowledge pipeline | Principles only | **Generate → ground-check → review gate → approved items** |
 | Retrieval | Keyword/tag only | **BM25 + dense + RRF + knowledge graph (744 nodes)** |
 | Document output | None | **PPTX + DOCX (4 tool variants)** |
 | Coaching depth | Review Coach only | **Profile + progress + threads + explainability** |
 | Account view | Deal-level only | **8-dimension account health + trajectory + expansion** |
 | Workspace | Two separate pages | **Unified slash-command shell + artifacts + XLSX export** |
-| Ingestion | None | **Audio/image/text → editable draft → overlay persistence** |
+| Ingestion | None | **Capture via Clip (paperclip button → editable CaptureTurn) + backend pipeline** |
 | Observability | None | **Retrieval Explorer (per-chunk source + scope + score)** |
 | QA scripts | 0 | **5 (stress pipeline, health backtest, grounding audit ×3, contract checker, live cache test)** |
 
@@ -815,9 +878,11 @@ Documented in `docs/synthetic_dataset.md` (new file this week).
 | `senpai/graph/` | Knowledge graph (build, query) |
 | `senpai/ingestion/` | Multimodal ingestion (pipeline, multimodal, persist) |
 | `senpai/tools/gcal.py` | Google Calendar integration (two-step confirm) |
-| `senpai/matsuda/` | Account context synthesis prototype — synthesize-once, answer-many |
-| `senpai/apps/matsuda_demo.py` | Streamlit demo for Matsuda Context |
-| `web/components/workspace/` | Workspace shell (workspace, slash picker, artifact-card, unified ArtifactBody, cards/) |
+| `senpai/knowledge/schema.py` | 4-layer knowledge data model (Source→Principle→GeneratedItem) |
+| `senpai/knowledge/generate.py` | LLM coaching-item generation from validated principles |
+| `senpai/knowledge/review.py` | Human review gate (approve / request_edit / reject) |
+| `senpai/knowledge/store.py` | Knowledge persistence + overlay (mirrors data store pattern) |
+| `web/components/workspace/` | Workspace shell + Capture via Clip (paperclip button, CaptureTurn, editable draft) |
 | `web/components/account/` | Account Intelligence frontend (accounts-index, account-view) |
 | `web/components/assistant/retrieval-explorer.tsx` | Retrieval Explorer — per-chunk grounding debugger |
 | `web/components/coaching/rep-profiles.tsx` | Rep coaching profiles frontend (372 lines) |
