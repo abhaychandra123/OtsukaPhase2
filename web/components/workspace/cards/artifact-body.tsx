@@ -16,7 +16,7 @@
 import { useState } from "react";
 import {
   AlertTriangle, Bot, Building2, ChevronDown, Database, Eye,
-  FileSpreadsheet, Layers, Lightbulb, MessagesSquare, Route, Scale, Search, Sparkles, type LucideIcon,
+  FileSpreadsheet, Layers, Lightbulb, MessagesSquare, Route, Scale, Search, Sparkles, Target, type LucideIcon,
 } from "lucide-react";
 import type { Artifact, ArtifactKind, EvidenceRef } from "@/lib/artifacts";
 import type { Confidence } from "@/lib/types";
@@ -28,7 +28,7 @@ import { ConfidenceBadge } from "@/components/confidence-badge";
 
 const ICONS: Record<string, LucideIcon> = {
   eye: Eye, search: Search, alert: AlertTriangle,
-  message: MessagesSquare, route: Route, scale: Scale,
+  message: MessagesSquare, route: Route, scale: Scale, target: Target,
 };
 
 const BAND_CHIP: Record<string, string> = {

@@ -4,6 +4,7 @@
     "name": "富士商事",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -16,6 +17,7 @@
     "name": "豊田工業",
     "industry": "IT",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "IT",
@@ -28,6 +30,7 @@
     "name": "株式会社旭商事",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -40,6 +43,7 @@
     "name": "有限会社関東運輸",
     "industry": "製造",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -52,6 +56,7 @@
     "name": "株式会社光クリニック",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -64,6 +69,7 @@
     "name": "株式会社あおぞらサービス",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -76,6 +82,7 @@
     "name": "株式会社大和商事",
     "industry": "小売",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "小売",
@@ -88,6 +95,7 @@
     "name": "協和サービス",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -100,6 +108,7 @@
     "name": "株式会社ヤマト食品",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -112,6 +121,7 @@
     "name": "有限会社誠和サービス",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -124,6 +134,7 @@
     "name": "村田建設",
     "industry": "不動産",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -136,6 +147,7 @@
     "name": "有限会社遠藤製作所",
     "industry": "建設",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -148,6 +160,7 @@
     "name": "有限会社村田印刷",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -160,6 +173,7 @@
     "name": "丸三食品",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -172,6 +186,7 @@
     "name": "豊田運輸",
     "industry": "IT",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -184,6 +199,7 @@
     "name": "株式会社明光興業",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -196,6 +212,7 @@
     "name": "株式会社和田産業",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -208,6 +225,7 @@
     "name": "有限会社ヤマト物産",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -220,6 +238,7 @@
     "name": "近藤運輸",
     "industry": "物流",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -232,6 +251,7 @@
     "name": "株式会社中島運輸",
     "industry": "士業",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -244,6 +264,7 @@
     "name": "有限会社緑川サービス",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -256,6 +277,7 @@
     "name": "有限会社丸三商事",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -268,6 +290,7 @@
     "name": "株式会社村田工業",
     "industry": "小売",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -280,6 +303,7 @@
     "name": "平和建設",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -292,6 +316,7 @@
     "name": "有限会社松田事務所",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -304,6 +329,7 @@
     "name": "有限会社あけぼの印刷",
     "industry": "IT",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "IT",
@@ -316,6 +342,7 @@
     "name": "株式会社丸越クリニック",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -328,6 +355,7 @@
     "name": "株式会社松田サービス",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -340,6 +368,7 @@
     "name": "有限会社森本サービス",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -352,6 +381,7 @@
     "name": "有限会社昭和製作所",
     "industry": "小売",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -364,6 +394,7 @@
     "name": "株式会社北斗サービス",
     "industry": "士業",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "士業",
@@ -376,6 +407,7 @@
     "name": "有限会社村田工業",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -388,6 +420,7 @@
     "name": "株式会社第一産業",
     "industry": "不動産",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -400,6 +433,7 @@
     "name": "株式会社宝商事",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -412,6 +446,7 @@
     "name": "有限会社藤本興業",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -424,6 +459,7 @@
     "name": "豊田製作所",
     "industry": "物流",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -436,6 +472,7 @@
     "name": "第一製作所",
     "industry": "士業",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -448,6 +485,7 @@
     "name": "株式会社和田印刷",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -460,6 +498,7 @@
     "name": "丸越工業",
     "industry": "教育",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -472,6 +511,7 @@
     "name": "三幸印刷",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -484,6 +524,7 @@
     "name": "有限会社近藤工業",
     "industry": "製造",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -496,6 +537,7 @@
     "name": "光運輸",
     "industry": "医療",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -508,6 +550,7 @@
     "name": "有限会社第一精工",
     "industry": "士業",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -520,6 +563,7 @@
     "name": "あおぞらシステム",
     "industry": "医療",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "医療",
@@ -532,6 +576,7 @@
     "name": "サンライズ運輸",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -544,6 +589,7 @@
     "name": "小林興業",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -556,6 +602,7 @@
     "name": "株式会社山田クリニック",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -568,6 +615,7 @@
     "name": "青木商事",
     "industry": "小売",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -580,6 +628,7 @@
     "name": "株式会社協和物産",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -592,6 +641,7 @@
     "name": "有限会社光印刷",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -604,6 +654,7 @@
     "name": "サンライズ印刷",
     "industry": "医療",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -616,6 +667,7 @@
     "name": "ニュー産業",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -628,6 +680,7 @@
     "name": "株式会社平和印刷",
     "industry": "建設",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -640,6 +693,7 @@
     "name": "株式会社今井サービス",
     "industry": "教育",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -652,6 +706,7 @@
     "name": "有限会社黒田食品",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -664,6 +719,7 @@
     "name": "株式会社関東運輸",
     "industry": "製造",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -676,6 +732,7 @@
     "name": "有限会社青木システム",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -688,6 +745,7 @@
     "name": "豊田サービス",
     "industry": "物流",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -700,6 +758,7 @@
     "name": "有限会社今井システム",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -712,6 +771,7 @@
     "name": "ひかり物産",
     "industry": "建設",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -724,6 +784,7 @@
     "name": "中央電機",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -736,6 +797,7 @@
     "name": "小島クリニック",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -748,6 +810,7 @@
     "name": "有限会社西村建設",
     "industry": "小売",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -760,6 +823,7 @@
     "name": "株式会社和田電機",
     "industry": "建設",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -772,6 +836,7 @@
     "name": "有限会社白井工業",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -784,6 +849,7 @@
     "name": "宝興業",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -796,6 +862,7 @@
     "name": "有限会社新栄建設",
     "industry": "士業",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "士業",
@@ -808,6 +875,7 @@
     "name": "有限会社明光精工",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -820,6 +888,7 @@
     "name": "旭産業",
     "industry": "士業",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -832,6 +901,7 @@
     "name": "有限会社近藤印刷",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -844,6 +914,7 @@
     "name": "株式会社岡本電機",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -856,6 +927,7 @@
     "name": "株式会社新栄食品",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -868,6 +940,7 @@
     "name": "昭和産業",
     "industry": "製造",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -880,6 +953,7 @@
     "name": "あけぼの食品",
     "industry": "不動産",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -892,6 +966,7 @@
     "name": "有限会社豊田印刷",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -904,6 +979,7 @@
     "name": "有限会社ニュー食品",
     "industry": "医療",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -916,6 +992,7 @@
     "name": "江口商事",
     "industry": "小売",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -928,6 +1005,7 @@
     "name": "株式会社小林食品",
     "industry": "物流",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -940,6 +1018,7 @@
     "name": "有限会社近藤産業",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -952,6 +1031,7 @@
     "name": "株式会社黒田工業",
     "industry": "製造",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -964,6 +1044,7 @@
     "name": "株式会社平和システム",
     "industry": "IT",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -976,6 +1057,7 @@
     "name": "株式会社小島システム",
     "industry": "医療",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "医療",
@@ -988,6 +1070,7 @@
     "name": "和田食品",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -1000,6 +1083,7 @@
     "name": "遠藤電機",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1012,6 +1096,7 @@
     "name": "青木事務所",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -1024,6 +1109,7 @@
     "name": "株式会社青木事務所",
     "industry": "不動産",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1036,6 +1122,7 @@
     "name": "遠藤興業",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1048,6 +1135,7 @@
     "name": "株式会社東和運輸",
     "industry": "不動産",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1060,6 +1148,7 @@
     "name": "株式会社丸三クリニック",
     "industry": "医療",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "医療",
@@ -1072,6 +1161,7 @@
     "name": "有限会社小島運輸",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -1084,6 +1174,7 @@
     "name": "株式会社中島産業",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1096,6 +1187,7 @@
     "name": "株式会社東和電機",
     "industry": "建設",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1108,6 +1200,7 @@
     "name": "協和興業",
     "industry": "士業",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -1120,6 +1213,7 @@
     "name": "昭和運輸",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -1132,6 +1226,7 @@
     "name": "株式会社西村建設",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1144,6 +1239,7 @@
     "name": "近藤電機",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1156,6 +1252,7 @@
     "name": "有限会社山田物産",
     "industry": "飲食",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1168,6 +1265,7 @@
     "name": "株式会社緑川興業",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1180,6 +1278,7 @@
     "name": "有限会社ニュー建設",
     "industry": "製造",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1192,6 +1291,7 @@
     "name": "株式会社松田興業",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小売",
@@ -1204,6 +1304,7 @@
     "name": "株式会社富士産業",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1216,6 +1317,7 @@
     "name": "有限会社あおぞら産業",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1228,6 +1330,7 @@
     "name": "東和建設",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1240,6 +1343,7 @@
     "name": "有限会社大東興業",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -1252,6 +1356,7 @@
     "name": "有限会社みどり印刷",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1264,6 +1369,7 @@
     "name": "株式会社石川物産",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "小売",
@@ -1276,6 +1382,7 @@
     "name": "江口電機",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1288,6 +1395,7 @@
     "name": "有限会社石川興業",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1300,6 +1408,7 @@
     "name": "株式会社東和印刷",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1312,6 +1421,7 @@
     "name": "株式会社近藤建設",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1324,6 +1434,7 @@
     "name": "有限会社緑川興業",
     "industry": "小売",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1336,6 +1447,7 @@
     "name": "ヤマト建設",
     "industry": "物流",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1348,6 +1460,7 @@
     "name": "有限会社近藤製作所",
     "industry": "不動産",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1360,6 +1473,7 @@
     "name": "有限会社旭商事",
     "industry": "士業",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -1372,6 +1486,7 @@
     "name": "有限会社白井興業",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -1384,6 +1499,7 @@
     "name": "株式会社あけぼの印刷",
     "industry": "医療",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1396,6 +1512,7 @@
     "name": "株式会社富士精工",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1408,6 +1525,7 @@
     "name": "石川産業",
     "industry": "不動産",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -1420,6 +1538,7 @@
     "name": "株式会社小島物産",
     "industry": "小売",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1432,6 +1551,7 @@
     "name": "石川商事",
     "industry": "飲食",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1444,6 +1564,7 @@
     "name": "有限会社豊田興業",
     "industry": "物流",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1456,6 +1577,7 @@
     "name": "有限会社北斗印刷",
     "industry": "IT",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "IT",
@@ -1468,6 +1590,7 @@
     "name": "有限会社西村興業",
     "industry": "教育",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1480,6 +1603,7 @@
     "name": "株式会社明光クリニック",
     "industry": "小売",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "中規模",
@@ -1492,6 +1616,7 @@
     "name": "サンライズ産業",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -1504,6 +1629,7 @@
     "name": "藤本食品",
     "industry": "小売",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1516,6 +1642,7 @@
     "name": "岡本興業",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "士業",
@@ -1528,6 +1655,7 @@
     "name": "ひかり印刷",
     "industry": "小売",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1540,6 +1668,7 @@
     "name": "株式会社藤本電機",
     "industry": "製造",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1552,6 +1681,7 @@
     "name": "有限会社協和産業",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "医療",
@@ -1564,6 +1694,7 @@
     "name": "株式会社東和食品",
     "industry": "IT",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1576,6 +1707,7 @@
     "name": "有限会社緑川運輸",
     "industry": "不動産",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "不動産",
@@ -1588,6 +1720,7 @@
     "name": "豊田建設",
     "industry": "小売",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1600,6 +1733,7 @@
     "name": "有限会社藤本運輸",
     "industry": "不動産",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "不動産",
@@ -1612,6 +1746,7 @@
     "name": "株式会社村田食品",
     "industry": "IT",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1624,6 +1759,7 @@
     "name": "松田運輸",
     "industry": "製造",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1636,6 +1772,7 @@
     "name": "株式会社小島事務所",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1648,6 +1785,7 @@
     "name": "株式会社緑川製作所",
     "industry": "飲食",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -1660,6 +1798,7 @@
     "name": "有限会社西村産業",
     "industry": "医療",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "医療",
@@ -1672,6 +1811,7 @@
     "name": "石川建設",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1684,6 +1824,7 @@
     "name": "有限会社富士精工",
     "industry": "小売",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1696,6 +1837,7 @@
     "name": "協和工業",
     "industry": "教育",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1708,6 +1850,7 @@
     "name": "有限会社和田運輸",
     "industry": "IT",
     "size": "中規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "IT",
@@ -1720,6 +1863,7 @@
     "name": "新栄興業",
     "industry": "製造",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1732,6 +1876,7 @@
     "name": "株式会社緑川精工",
     "industry": "飲食",
     "size": "中規模",
+    "region": "関西",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
@@ -1744,6 +1889,7 @@
     "name": "有限会社丸三システム",
     "industry": "小売",
     "size": "小規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小売",
@@ -1756,6 +1902,7 @@
     "name": "西村物産",
     "industry": "教育",
     "size": "小規模",
+    "region": "関西",
     "has_web_presence": false,
     "profile_tags": [
       "中規模",
@@ -1768,6 +1915,7 @@
     "name": "株式会社藤本事務所",
     "industry": "建設",
     "size": "中規模",
+    "region": "その他",
     "has_web_presence": false,
     "profile_tags": [
       "小規模",
@@ -1780,6 +1928,7 @@
     "name": "株式会社和田事務所",
     "industry": "士業",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "士業",
@@ -1792,6 +1941,7 @@
     "name": "株式会社昭和工業",
     "industry": "建設",
     "size": "小規模",
+    "region": "関東",
     "has_web_presence": true,
     "profile_tags": [
       "小規模",
