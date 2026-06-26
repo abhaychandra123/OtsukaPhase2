@@ -260,9 +260,58 @@ the current system comes to geographic/market-segment differentiation.
 - **`AccountSummary`** — `industry` and `size` are first-class fields; the account-context
   assembler includes them in the grounded header line fed to the model.
 
-**Design note:** no geographic/prefecture field exists in the current schema. Industry serves
-as the primary market-segment discriminator; size captures the SMB vs mid-market split that
-shapes deal complexity and decision-maker topology.
+**Design note:** industry is the primary market-segment discriminator; size captures the SMB
+vs mid-market split that shapes deal complexity and decision-maker topology. A **`region`**
+field (関東 / 関西 / その他) was also added this week to drive the Strategic Stance engine
+(§4.7).
+
+### 4.7 Strategic Tier + Regional Stance (`account/strategy.py`)
+
+A deterministic **pre-query stance selector**: before the model writes any account read, a
+pure function picks the *coaching posture* from two hard facts — the account's largest open-deal
+amount (→ a Strategic Tier) and the customer's region (→ a regional modifier). It returns both
+the **directives injected into the prompt** and a transparent **rationale surfaced to the rep**,
+so the salesperson always sees *which* threshold and *which* region produced the advice — and
+can override it.
+
+**Strategic Tiers** (driven by the largest open deal; the biggest opportunity sets the posture):
+
+| Tier | Band | Stance directives |
+|---|---|---|
+| Tier 1 メガ案件 | ≥ ¥1.5M (top ~5%) | Advisory, not quick-close; 根回し (nemawashi) across stakeholders; multi-layer 稟議 (ringi) prep; involve own management |
+| Tier 2 標準案件 | ¥300K–¥1.5M | Balanced consultative; needs-discovery + cost/benefit; standard approval path |
+| Tier 3 ボリューム案件 | < ¥300K | High-velocity close; ROI-led pitch; minimise touch-points; shortest route to the DM |
+
+**Threshold calibration:** the original spec proposed ¥100M / ¥5M, but Otsuka Shokai is an SMB
+IT reseller — the dataset's largest deal is ¥3.12M (median ¥216K), so absolute enterprise
+thresholds put **100% of accounts in Tier 3** (feature invisible). The thresholds are instead
+calibrated to the data's distribution (≈p95 / ≈p60), yielding a real spread:
+**6 mega / 37 standard / 107 volume** accounts (≈5% / 34% / 61% of deals). "Mega" means
+"large for this book," not absolute scale — `TIER1_MIN_YEN` / `TIER3_MAX_YEN` are the single
+tuning surface.
+
+**Regional modifiers** (`region` field, derived per-customer from a local RNG keyed on
+`customer_id` so SPR tables stay byte-identical):
+- **関東 (Kanto)** — formal; respect process and organisational hierarchy
+- **関西 (Kansai)** — direct, merchant-minded (商人気質); frank about value and price
+- **その他** — neutral / standard
+
+**Transparency (the key requirement):** the stance is *deterministic and shown*, not hidden in
+the prompt. `StrategicContext` carries a bilingual `rationale` ("最大の進行中案件が¥1,800,000
+（¥1,500,000以上）のためメガ案件と判定。地域: 関東。") that is surfaced three ways:
+1. In the deterministic `GET /api/account/{id}` payload (`strategy` field).
+2. As a dedicated **`strategy` SSE event** in the commentary stream.
+3. As a **Strategic Stance card** in `account-view.tsx` — tier + region chips, the rationale
+   ("why this was chosen"), and the directive bullets — so the rep judges the advice with the
+   reasoning visible.
+
+The directives are injected into the commentary prompt via `StrategicContext.as_prompt_block()`;
+the prompt instructs the model to *adopt the posture and reflect it in Recommended Focus*. The
+directives are authored posture heuristics (like `_recommended_focus`), never factual claims —
+the only data they rest on is the deal amount and region, both quoted verbatim in the rationale.
+
+Tests: `tests/test_strategy.py` (7 tests — tier boundaries, region normalization, rationale
+grounding, dict round-trip, all-three-tiers-occur in the seed).
 
 ---
 

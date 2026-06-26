@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowUpRight, Boxes, Building2, ChevronLeft, Factory, Loader2, Receipt,
-  ShoppingCart, Sparkles, TrendingDown, TrendingUp, Wrench, type LucideIcon,
+  ArrowUpRight, Boxes, Building2, ChevronLeft, Compass, Factory, Loader2, MapPin,
+  Receipt, ShoppingCart, Sparkles, Target, TrendingDown, TrendingUp, Wrench, type LucideIcon,
 } from "lucide-react";
 import { api, accountCommentaryStream, type AccountCommentaryEvent } from "@/lib/api";
 import type { AccountSummary, AccountHealthDimension, Band, DealRow } from "@/lib/types";
@@ -103,6 +103,12 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
           <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1"><Factory className="h-3.5 w-3.5" /> {acct.industry}</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1"><Building2 className="h-3.5 w-3.5" /> {acct.size}</span>
+            {acct.strategy && (
+              <>
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-primary"><Target className="h-3.5 w-3.5" /> {L({ ja: acct.strategy.tier_label_ja, en: acct.strategy.tier_label_en })}</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1"><MapPin className="h-3.5 w-3.5" /> {L({ ja: acct.strategy.region_label_ja, en: acct.strategy.region_label_en })}</span>
+              </>
+            )}
             <span className="font-mono text-[11px] text-muted-foreground/70">{acct.customer_id}</span>
             {!live && <span className="rounded-full bg-band-yellow/10 px-2 py-0.5 text-[10.5px] text-band-yellow">offline</span>}
           </div>
@@ -116,6 +122,33 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
         </div>
         <HealthGauge score={h.score} band={h.band} label={L(BAND_TEXT[h.band])} />
       </header>
+
+      {/* STRATEGIC STANCE — deterministic tier + region posture, with its rationale */}
+      {acct.strategy && (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <SectionTitle
+            ja="戦略スタンス"
+            en="Strategic Stance"
+            sub={lang === "ja" ? "案件規模と地域から自動判定（営業の参考。最終判断は担当者）" : "Auto-selected from deal size + region (guidance — the rep decides)"}
+          />
+          <div className="mt-3 flex items-center gap-2 text-[12.5px]">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary"><Target className="h-3.5 w-3.5" /> {L({ ja: acct.strategy.tier_label_ja, en: acct.strategy.tier_label_en })}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1"><MapPin className="h-3.5 w-3.5" /> {L({ ja: acct.strategy.region_label_ja, en: acct.strategy.region_label_en })}</span>
+          </div>
+          <p className="mt-2 flex items-start gap-1.5 text-[12.5px] text-muted-foreground">
+            <Compass className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {L({ ja: acct.strategy.rationale_ja, en: acct.strategy.rationale_en })}
+          </p>
+          <ul className="mt-3 space-y-1.5">
+            {(lang === "ja" ? acct.strategy.directives_ja : acct.strategy.directives_en).map((d, i) => (
+              <li key={i} className="flex items-start gap-2 text-[12.5px]">
+                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary/60" />
+                <span className="font-jp">{d}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* ACCOUNT HEALTH — dimensions / explainability */}
       <section className="rounded-2xl border border-border bg-card p-5">

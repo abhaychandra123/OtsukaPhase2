@@ -17,6 +17,7 @@ from senpai.data import store
 from senpai.account.health import account_health, AccountHealth
 from senpai.account.trajectory import relationship_trajectory, Pattern
 from senpai.account.expansion import expansion_opportunities, Opportunity
+from senpai.account.strategy import strategic_context
 
 
 @dataclass
@@ -25,6 +26,7 @@ class AccountSummary:
     customer: str
     industry: str
     size: str
+    region: str
     active_deals: int
     won_deals: int
     lost_deals: int
@@ -36,6 +38,7 @@ class AccountSummary:
     recent_orders: list[dict] = field(default_factory=list)
     environment: str | None = None
     health: dict = field(default_factory=dict)
+    strategy: dict = field(default_factory=dict)
     risk_signals: list[dict] = field(default_factory=list)
     expansion_signals: list[dict] = field(default_factory=list)
     recommended_focus: str = ""
@@ -103,11 +106,19 @@ def build_account_summary(customer_id: str, today: date | None = None) -> Accoun
     patterns = relationship_trajectory(customer_id, today=today)
     opps = expansion_opportunities(customer_id)
 
+    # Strategic stance: driven by the largest OPEN deal (the biggest opportunity in
+    # play sets the posture) and the customer's region. Deterministic; the rationale
+    # in `strategy` makes the choice transparent to the rep.
+    largest_open = max((d.get("total_order_amount", 0) or 0 for d in open_deals),
+                       default=0)
+    strat = strategic_context(largest_open, customer.get("region"))
+
     return AccountSummary(
         customer_id=customer_id,
         customer=customer.get("name", customer_id),
         industry=customer.get("industry", "?"),
         size=customer.get("size", "?"),
+        region=customer.get("region", "その他"),
         active_deals=len(open_deals),
         won_deals=won,
         lost_deals=lost,
@@ -129,6 +140,7 @@ def build_account_summary(customer_id: str, today: date | None = None) -> Accoun
         ],
         environment=_env_summary(customer_id),
         health=health.to_dict(),
+        strategy=strat.to_dict(),
         risk_signals=[p.to_dict() for p in patterns if p.polarity == "risk"],
         expansion_signals=[o.to_dict() for o in opps]
         + [p.to_dict() for p in patterns if p.polarity == "positive"],

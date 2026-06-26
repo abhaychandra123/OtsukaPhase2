@@ -6,6 +6,7 @@ from senpai.account.health import account_health, AccountHealth
 from senpai.account.trajectory import relationship_trajectory, Pattern
 from senpai.account.expansion import expansion_opportunities, Opportunity
 from senpai.account.context import build_account_context, account_commentary_prompt
+from senpai.account.strategy import strategic_context, StrategicContext
 
 __all__ = [
     "build_account_summary", "AccountSummary",
@@ -13,4 +14,5 @@ __all__ = [
     "relationship_trajectory", "Pattern",
     "expansion_opportunities", "Opportunity",
     "build_account_context", "account_commentary_prompt",
+    "strategic_context", "StrategicContext",
 ]
