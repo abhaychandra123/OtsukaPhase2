@@ -37,14 +37,37 @@ def output_path(kind: str, slug: str, ext: str) -> Path:
     return config.GENERATED_DIR / f"{kind}_{safe}_{stamp}.{ext}"
 
 
+# Layouts we populate, mapped to the Otsuka template's layout names (and the
+# blank default's, as a fallback). The template is hand-built: its "Title Only"
+# layout (タイトルのみ) carries NO body placeholder, so the content layout MUST be
+# resolved by name — blindly using slide_layouts[1] would silently drop bullets.
+_TITLE_LAYOUT_NAMES = ("タイトル スライド", "Title Slide")
+_CONTENT_LAYOUT_NAMES = ("タイトルとコンテンツ", "Title and Content")
+
+
+def _layout(prs, names, fallback_idx):
+    """Pick a slide layout by name (Otsuka template / Office default), else by index."""
+    by_name = {layout.name: layout for layout in prs.slide_layouts}
+    for name in names:
+        if name in by_name:
+            return by_name[name]
+    return prs.slide_layouts[fallback_idx]
+
+
 def render_pptx(deck_spec: dict, path: Path) -> Path:
-    """Render a deck spec to a .pptx file at `path`. Returns the path."""
+    """Render a deck spec to a .pptx file at `path`. Returns the path.
+
+    Opens the committed Otsuka brand template (config.PPTX_TEMPLATE_PATH) as the
+    base so the deck inherits its masters/layouts/theme; falls back to python-pptx's
+    blank default if the template is missing (e.g. in CI without the asset).
+    """
     from pptx import Presentation
     from pptx.util import Pt
 
-    prs = Presentation()
-    title_layout = prs.slide_layouts[0]      # Title Slide
-    content_layout = prs.slide_layouts[1]    # Title and Content
+    tmpl = config.PPTX_TEMPLATE_PATH
+    prs = Presentation(str(tmpl)) if tmpl.exists() else Presentation()
+    title_layout = _layout(prs, _TITLE_LAYOUT_NAMES, 0)       # Title Slide
+    content_layout = _layout(prs, _CONTENT_LAYOUT_NAMES, 1)   # Title and Content
 
     slides = deck_spec.get("slides") or []
     if not slides:  # never produce an empty deck

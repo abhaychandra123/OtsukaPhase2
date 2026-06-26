@@ -127,6 +127,13 @@ INGESTED_DIR = PKG_DIR / "data" / "ingested"
 # created on first write. The committed seed is never touched by document generation.
 GENERATED_DIR = PKG_DIR / "data" / "generated"
 
+# Committed brand template for generated PPTX decks: an Otsuka proposal deck with
+# all content slides stripped, leaving only its slide masters/layouts/theme (the
+# Meiryo UI font + corporate styling). render.render_pptx opens this as the base
+# so generated decks inherit Otsuka branding. If absent, rendering falls back to
+# python-pptx's blank default (keeps tests/CI green without the committed asset).
+PPTX_TEMPLATE_PATH = PKG_DIR / "data" / "templates" / "otsuka_template.pptx"
+
 
 def fiscal_year_quarter(d_iso: str) -> tuple[int, int]:
     """Japanese fiscal year/quarter for a YYYY-MM-DD date (FY starts in April).
