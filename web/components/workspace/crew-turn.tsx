@@ -6,15 +6,14 @@ import { crewStream, teamStream, type CrewEvent, type ResolveCandidate } from "@
 import { useT } from "@/lib/i18n";
 import { useCachedState } from "@/lib/chat-store";
 import { AnswerMd } from "@/components/assistant/message";
-import { ExecutionLog, type ExecutionPhase } from "@/components/agent/agent-lane";
+import { ExecutionTimeline, type ExecutionPhase } from "@/components/agent/agent-lane";
 
 // Inline multi-agent execution — triggered by /crew or /team.
 //
-// UX model: a hierarchical execution checklist. Each major phase (an agent) is a
-// parent task with a checkpoint indicator (□ → ◧ → ☑); its tool calls render as
-// indented ✓ subtasks while the phase runs, then collapse to a summary row. The
-// final brief is the hero. State is cached per turn so switching tabs and back
-// restores everything without re-running the crew.
+// UX model: one intelligent system investigating a customer.
+// The timeline tells the story of what's happening; once the artifact arrives
+// the timeline auto-collapses so the brief becomes the dominant element.
+// State is cached per turn so switching tabs and back restores everything.
 export function CrewTurn({
   turnId,
   conversationId,
@@ -30,16 +29,18 @@ export function CrewTurn({
   const { t, lang } = useT();
   const key = `ws:crew:${conversationId}:${turnId}`;
 
-  const [started, setStarted] = useCachedState<boolean>(`${key}:started`, false);
-  const [phases, setPhases] = useCachedState<ExecutionPhase[]>(`${key}:phases`, []);
-  const [brief, setBrief] = useCachedState<string>(`${key}:brief`, "");
-  const [statusLine, setStatusLine] = useCachedState<string>(`${key}:statusline`, "");
-  const [candidates, setCandidates] = useCachedState<ResolveCandidate[]>(`${key}:cands`, []);
-  const [pickQuery, setPickQuery] = useCachedState<string>(`${key}:pq`, "");
-  const [status, setStatus] = useCachedState<"running" | "done" | "error">(`${key}:status`, "running");
+  const [started,      setStarted]      = useCachedState<boolean>(`${key}:started`, false);
+  const [phases,       setPhases]        = useCachedState<ExecutionPhase[]>(`${key}:phases`, []);
+  const [brief,        setBrief]         = useCachedState<string>(`${key}:brief`, "");
+  const [candidates,   setCandidates]    = useCachedState<ResolveCandidate[]>(`${key}:cands`, []);
+  const [pickQuery,    setPickQuery]     = useCachedState<string>(`${key}:pq`, "");
+  const [status,       setStatus]        = useCachedState<"running" | "done" | "error">(`${key}:status`, "running");
+  const [showArtifact, setShowArtifact]  = useCachedState<boolean>(`${key}:show`, false);
+  const [collapsed,    setCollapsed]     = useCachedState<boolean>(`${key}:collapsed`, false);
 
-  const startedRef = useRef(false);
-  const ctrlRef = useRef<AbortController | null>(null);
+  const startedRef   = useRef(false);
+  const ctrlRef      = useRef<AbortController | null>(null);
+  const collapseRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // First short, clean line of an agent's contribution → the collapsed summary.
   const hintFrom = (contribution?: string) =>
@@ -56,7 +57,9 @@ export function CrewTurn({
     setCandidates([]);
     setPhases([]);
     setBrief("");
-    setStatusLine(lang === "ja" ? "分析を準備中..." : "Preparing analysis...");
+    setShowArtifact(false);
+    setCollapsed(false);
+    if (collapseRef.current) clearTimeout(collapseRef.current);
 
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
@@ -64,7 +67,7 @@ export function CrewTurn({
     const onEvent = (e: CrewEvent) => {
       switch (e.type) {
         case "crew": {
-          // Seed one parent phase per agent, all pending.
+          // Seed ALL phases upfront — pending ones show as future work.
           setPhases(
             e.agents.map((a) => ({
               id: a.id,
@@ -73,12 +76,6 @@ export function CrewTurn({
               status: "pending" as const,
               tools: [],
             })),
-          );
-          const name = e.deal_name || e.customer;
-          setStatusLine(
-            name
-              ? lang === "ja" ? `${name} を分析中...` : `Analyzing ${name}...`
-              : lang === "ja" ? "チームを分析中..." : "Analyzing team...",
           );
           break;
         }
@@ -95,16 +92,12 @@ export function CrewTurn({
           break;
 
         case "agent":
-          // The strategist has no tools, so narrate its (otherwise silent) phase.
-          if (e.status === "running" && e.id === "strategist") {
-            setStatusLine(lang === "ja" ? "戦略を統合中..." : "Synthesizing strategy...");
-          }
           setPhases((prev) =>
             prev.map((p) => {
               if (p.id !== e.id) return p;
               if (e.status === "running") return { ...p, status: "running" };
-              if (e.status === "done") return { ...p, status: "done", resultHint: hintFrom(e.contribution) };
-              if (e.status === "error") return { ...p, status: "done" };
+              if (e.status === "done")    return { ...p, status: "done", resultHint: hintFrom(e.contribution) };
+              if (e.status === "error")   return { ...p, status: "done" };
               return p;
             }),
           );
@@ -117,17 +110,23 @@ export function CrewTurn({
 
         case "final":
           setBrief(e.markdown);
-          setStatusLine(lang === "ja" ? "分析完了" : "Analysis complete");
           break;
 
         case "error":
           setStatus("error");
-          setStatusLine(lang === "ja" ? "エラーが発生しました" : "Something went wrong");
           break;
       }
     };
 
-    run(onEvent, { signal: ctrl.signal }).then(() => setStatus((s) => (s === "error" ? s : "done")));
+    run(onEvent, { signal: ctrl.signal }).then(() => {
+      setStatus((s) => (s === "error" ? s : "done"));
+      if (ctrlRef.current && !ctrlRef.current.signal.aborted) {
+        // Artifact fades in after 300ms…
+        setTimeout(() => setShowArtifact(true), 300);
+        // …then timeline collapses 800ms later so artifact dominates.
+        collapseRef.current = setTimeout(() => setCollapsed(true), 1100);
+      }
+    });
   };
 
   useEffect(() => {
@@ -138,44 +137,42 @@ export function CrewTurn({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cleanup collapse timer on unmount
+  useEffect(() => () => { if (collapseRef.current) clearTimeout(collapseRef.current); }, []);
+
   const pick = (c: ResolveCandidate) => {
     if (c.deal_id) start((on, o) => crewStream({ dealId: c.deal_id! }, on, o));
-    else start((on, o) => crewStream({ message: c.name }, on, o));
+    else           start((on, o) => crewStream({ message: c.name }, on, o));
   };
 
   const picking = candidates.length > 0 && phases.length === 0;
 
   return (
-    <div className="flex w-full flex-col gap-2.5 py-0.5">
-      {/* Live status headline — a small square pulses next to it while running */}
-      {statusLine && (
-        <p className="flex items-center gap-2 text-[13px] font-normal leading-snug text-muted-foreground">
-          {status === "running" && (
-            <span className="execution-pulse inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] bg-primary" />
-          )}
-          {statusLine}
-        </p>
-      )}
+    <div className="flex w-full flex-col gap-3 py-0.5">
 
-      {/* Ambiguous customer picker (restored: band-yellow header + chip buttons) */}
+      {/* Ambiguous customer picker (compact, list-based) */}
       {picking && (
-        <div className="rounded-lg border border-band-yellow/40 bg-band-yellow/[0.06] p-3">
-          <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-band-yellow">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_4px_20px_-10px_rgba(16,24,40,0.2)]">
+          <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
             <UserSearch className="h-3.5 w-3.5" />
             {lang === "ja"
-              ? `「${pickQuery || query || ""}」は複数の顧客に一致します。どの顧客ですか？`
-              : `"${pickQuery || query || ""}" matches several customers — which one?`}
+              ? `「${pickQuery || query || ""}」は複数の顧客に一致します`
+              : `"${pickQuery || query || ""}" matches several customers`}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-col">
             {candidates.map((c) => (
               <button
                 key={c.customer_id}
                 onClick={() => pick(c)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-[12px] text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-muted/60"
               >
-                <Building2 className="h-3 w-3 text-muted-foreground" />
-                {c.name}
-                {c.deal_id && <span className="font-mono text-[10px] text-muted-foreground">{c.deal_id}</span>}
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Building2 className="h-3 w-3 text-primary" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium text-foreground">{c.name}</span>
+                  {c.deal_id && <span className="block font-mono text-[10.5px] text-muted-foreground">{c.deal_id}</span>}
+                </span>
               </button>
             ))}
           </div>
@@ -189,13 +186,20 @@ export function CrewTurn({
         </p>
       )}
 
-      {/* Hierarchical execution checklist */}
-      {phases.length > 0 && <ExecutionLog phases={phases} />}
+      {/* Hierarchical execution timeline */}
+      {phases.length > 0 && (
+        <ExecutionTimeline
+          phases={phases}
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((v) => !v)}
+          lang={lang}
+        />
+      )}
 
       {/* Final artifact — the hero; appears once all work finishes */}
-      {brief && status === "done" && (
-        <div className="mt-6 animate-in fade-in duration-500 fill-mode-both slide-in-from-bottom-2">
-          <div className="mb-6 h-px w-8 bg-border" />
+      {brief && status === "done" && showArtifact && (
+        <div className="mt-5 animate-in fade-in duration-500 fill-mode-both slide-in-from-bottom-2">
+          <div className="mb-5 h-px w-8 bg-border" />
           <p className="eyebrow mb-4">{mode === "team" ? t("crew.team.brief") : t("crew.deal.brief")}</p>
           <AnswerMd text={brief} />
         </div>

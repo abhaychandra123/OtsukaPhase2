@@ -138,7 +138,7 @@ function SectionBlock({
   const Icon = (icon && ICONS[icon]) || Lightbulb;
   if (!body.length) return null;
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <Icon className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ function SectionBlock({
 function CommentaryBlock({ artifact, label }: { artifact: Artifact; label: string }) {
   if (!artifact.commentary) return null;
   return (
-    <div className="rounded-xl border border-primary/25 bg-primary/[0.02] p-4">
+    <div className="border-l-2 border-primary/40 pl-4 py-1">
       <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">
         <Bot className="h-3.5 w-3.5" /> {label}
         {artifact.status === "building" && (
@@ -250,7 +250,7 @@ export function ArtifactBody({ artifact }: { artifact: Artifact }) {
   );
 
   return (
-    <div className="space-y-4 rounded-2xl border border-primary/20 bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
       {/* header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
         <span className="flex items-center gap-2">

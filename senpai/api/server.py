@@ -54,6 +54,7 @@ from senpai.health.scoring import score_deal
 from senpai.knowledge import generate as kgen
 from senpai.knowledge import review as kreview
 from senpai.knowledge import store as kstore
+from senpai.research import shaping as _shaping
 from senpai.retrieval.playbook import find_similar_deals
 from senpai.tools.web import web_search_typed
 
@@ -844,54 +845,23 @@ def _is_research_intent(message: str) -> bool:
     return store.resolve_customer_detailed(target).status in ("resolved", "ambiguous")
 
 
+# Shaping helpers live canonically in senpai.research.shaping (M3 consolidation):
+# these are thin server-side aliases preserving the existing call sites + the
+# implicit _today() default. The bodies are no longer duplicated here.
 def _public_customer(c: dict | None) -> dict | None:
-    if not c:
-        return None
-    return {"customer_id": c.get("customer_id"), "name": c.get("name"),
-            "industry": c.get("industry"), "size": c.get("size"),
-            "profile_tags": c.get("profile_tags", [])}
+    return _shaping.public_customer(c)
 
 
 def _deal_summary(d: dict) -> dict:
-    acts = store.activities_for_deal(d["deal_id"])
-    res = score_deal(d, acts, today=_today())
-    return {
-        "deal_id": d["deal_id"],
-        "customer": store.customer_name(d["customer_id"]),
-        "rep": store.rep_name(store.deal_rep_id(d)),
-        "stage": d.get("order_rank"),
-        "amount": d.get("total_order_amount"),
-        "expected_close_date": d.get("expected_order_date"),
-        "product_category": d.get("product_category"),
-        "health": {
-            "band": res.band,
-            "score": res.score,
-            "reasons": res.top_reasons(3),
-        },
-    }
+    return _shaping.deal_summary(d, _today())
 
 
 def _activity_summary(a: dict) -> dict:
-    return {
-        "deal_id": a.get("deal_id"),
-        "date": a.get("activity_date"),
-        "type": a.get("activity_type"),
-        "contact": a.get("business_card_info"),
-        "text": a.get("daily_report"),
-    }
+    return _shaping.activity_summary(a)
 
 
 def _products_for_deals(deals: list[dict]) -> list[dict]:
-    categories = {d.get("product_category") for d in deals if d.get("product_category")}
-    products = []
-    seen = set()
-    for p in store.all_products():
-        hay = " ".join(str(p.get(k, "")) for k in ("product_name", "major", "mid", "minor", "product_code"))
-        if any(cat and (cat in hay or hay in cat) for cat in categories):
-            if p["product_code"] not in seen:
-                seen.add(p["product_code"])
-                products.append(p)
-    return products
+    return _shaping.products_for_deals(deals)
 
 
 def _deal_resolution(deal: dict) -> dict:
@@ -990,6 +960,37 @@ def _build_research_bundle(message: str, target: str, resolution) -> ResearchBun
     return bundle
 
 
+# --- Orchestration-backed builders (M1) -------------------------------------
+# Same signatures and identical output as the two legacy builders above, but the
+# gather runs on the orchestration engine (six research capabilities, a small DAG)
+# instead of an inline sequence. The legacy builders are kept as the parity oracle
+# for the golden tests (tests/test_research_parity.py); these are what the live
+# `/research` path calls. See senpai.research and docs/orchestration-architecture.md.
+def _build_research_bundle_orch(message: str, target: str, resolution) -> ResearchBundle:
+    if resolution.status != "resolved" or not resolution.customer:
+        return ResearchBundle(query=message, target=target,
+                              resolution=resolution.to_dict(),
+                              customer=_public_customer(resolution.customer))
+    from senpai.research import research_bundle_fields
+    fields = research_bundle_fields(
+        mode="customer", query=message, target=target,
+        resolution=resolution.to_dict(), customer=_public_customer(resolution.customer),
+        customer_id=resolution.customer["customer_id"], deal_id=None,
+        industry=resolution.customer.get("industry", ""), today=_today())
+    return ResearchBundle(**fields)
+
+
+def _build_deal_context_bundle_orch(message: str, target: str, deal: dict) -> ResearchBundle:
+    from senpai.research import research_bundle_fields
+    customer = store.get_customer(deal["customer_id"])
+    fields = research_bundle_fields(
+        mode="deal", query=message, target=target, resolution=_deal_resolution(deal),
+        customer=_public_customer(customer), customer_id=deal["customer_id"],
+        deal_id=deal["deal_id"], industry=(customer or {}).get("industry", ""),
+        today=_today())
+    return ResearchBundle(**fields)
+
+
 def _research_summary_prompt(bundle: ResearchBundle) -> str:
     return (
         "You are Senpai's customer research summarizer for Otsuka salespeople.\n"
@@ -1008,80 +1009,6 @@ def _ambiguity_answer(candidates: list[dict]) -> str:
         suffix = f"（一致: {aliases}）" if aliases else ""
         lines.append(f"- {c.get('customer_id')}: {c.get('name')}{suffix}")
     return "\n".join(lines)
-
-
-def _legacy_research_stream(req: ChatRequest):
-    target = _research_target(req.message)
-    yield _sse({"type": "start", "model": config.MODEL,
-                "endpoint": config.BASE_URL, "role": "research"})
-
-    resolution = store.resolve_customer_detailed(target)
-    res_obj = resolution.to_dict()
-    yield _sse({"type": "resolve", **res_obj})
-
-    if resolution.status == "ambiguous":
-        yield _source_event("internal_records", "Internal Records", "ambiguous",
-                            count=len(res_obj["candidates"]))
-        yield _source_event("deals", "Deals", "skipped")
-        yield _source_event("activities", "Activities", "skipped")
-        yield _source_event("environment", "Environment", "skipped")
-        yield _source_event("web_search", "Web Search", "skipped",
-                            detail="ambiguous_customer")
-        yield _sse({"type": "answer", "text": _ambiguity_answer(res_obj["candidates"])})
-        yield _sse({"type": "done", "model": config.MODEL})
-        return
-
-    bundle = _build_research_bundle(req.message, target, resolution)
-
-    if resolution.status == "resolved":
-        yield _source_event("internal_records", "Internal Records", "found", count=1)
-        yield _source_event("deals", "Deals",
-                            "found" if bundle.deals else "not_found",
-                            count=len(bundle.deals))
-        yield _source_event("activities", "Activities",
-                            "found" if bundle.activities else "not_found",
-                            count=len(bundle.activities))
-        yield _source_event("environment", "Environment",
-                            "found" if bundle.environment else "not_found")
-        yield _source_event("web_search", "Web Search", "skipped",
-                            detail="internal_record_found")
-    else:
-        yield _source_event("internal_records", "Internal Records", "not_found")
-        yield _source_event("deals", "Deals", "skipped")
-        yield _source_event("activities", "Activities", "skipped")
-        yield _source_event("environment", "Environment", "skipped")
-        web = web_search_typed(f"{target} company overview latest news")
-        bundle.web = web
-        bundle.provenance.append({"source": "web_search", "priority": 2,
-                                  "status": web.get("status"), "query": web.get("query")})
-        yield _sse({"type": "web", **web})
-        yield _source_event("web_search", "Web Search",
-                            "found" if web.get("status") == "found" else "error",
-                            count=len(web.get("results") or []),
-                            detail=web.get("reason", ""))
-        if web.get("status") != "found":
-            yield _sse({"type": "unavailable",
-                        "reason": "no_internal_record_and_web_unavailable"})
-            yield _sse({"type": "done", "model": config.MODEL})
-            return
-
-    try:
-        from senpai.llm.client import stream_complete
-        text = ""
-        for piece in stream_complete(
-            [{"role": "user", "content": _research_summary_prompt(bundle)}],
-            temperature=0.2,
-            max_tokens=config.LLM_MAX_TOKENS,
-            no_think=True,
-            allow_fallback=False,
-        ):
-            text += piece
-        text = (_strip_reasoning(text) or "").strip()
-        yield _sse({"type": "answer", "text": text or "リサーチ結果を生成できませんでした。"})
-        yield _sse({"type": "done", "model": config.MODEL})
-    except Exception:  # noqa: BLE001 - research must not silently use fallback
-        yield _sse({"type": "unavailable", "reason": "llm_unreachable"})
-        yield _sse({"type": "done", "model": config.MODEL})
 
 
 def _emit_bundle_sources(bundle: ResearchBundle, cached: bool = False):
@@ -1160,7 +1087,7 @@ def research_stream(req: ChatRequest):
             yield _sse({"type": "unavailable", "reason": "deal_not_found"})
             yield _sse({"type": "done", "model": config.MODEL})
             return
-        bundle = _build_deal_context_bundle(req.message, deal_id, deal)
+        bundle = _build_deal_context_bundle_orch(req.message, deal_id, deal)
         _RESEARCH_CONTEXTS[conversation_id] = bundle
         yield _sse({"type": "resolve", **bundle.resolution})
         yield _sse({"type": "context", "status": "active",
@@ -1215,7 +1142,7 @@ def research_stream(req: ChatRequest):
             yield _sse({"type": "done", "model": config.MODEL})
             return
         if len(active_deals) == 1:
-            bundle = _build_deal_context_bundle(req.message, target, active_deals[0])
+            bundle = _build_deal_context_bundle_orch(req.message, target, active_deals[0])
             _RESEARCH_CONTEXTS[conversation_id] = bundle
             yield _sse({"type": "context", "status": "active",
                         "conversation_id": conversation_id,
@@ -1227,7 +1154,7 @@ def research_stream(req: ChatRequest):
             yield from _summarize_research_bundle(bundle)
             return
 
-    bundle = _build_research_bundle(req.message, target, resolution)
+    bundle = _build_research_bundle_orch(req.message, target, resolution)
 
     if resolution.status == "resolved":
         for ev in _emit_bundle_sources(bundle):
@@ -1237,6 +1164,9 @@ def research_stream(req: ChatRequest):
         yield _source_event("deals", "Deals", "skipped")
         yield _source_event("activities", "Activities", "skipped")
         yield _source_event("environment", "Environment", "skipped")
+        # Web fallback stays on the direct seam (web_search_typed): it is a single
+        # external call, not gather orchestration, and existing tests patch this
+        # symbol. The engine-backed WebCapability is exercised by the golden tests.
         web = web_search_typed(f"{target} company overview latest news")
         bundle.web = web
         bundle.provenance.append({"source": "web_search", "priority": 2,
@@ -1670,7 +1600,8 @@ def account_commentary(customer_id: str, lang: str = "ja",
     Grounded in the deterministic account context package; reasoning disabled for
     low latency, pinned to the primary endpoint (no silent fallback). Event types:
       start | context | delta | done | unavailable"""
-    from senpai.account import build_account_context, account_commentary_prompt
+    from senpai.account import account_commentary_prompt
+    from senpai.account.gather import gather_account_context
 
     if not USE_LLM:
         return StreamingResponse(
@@ -1678,7 +1609,8 @@ def account_commentary(customer_id: str, lang: str = "ja",
             media_type="text/event-stream",
         )
 
-    context_text, ctx_meta = build_account_context(customer_id, today=_today(), lang=lang)
+    # Gather runs on the orchestration engine (M3); identical (context_text, meta).
+    context_text, ctx_meta = gather_account_context(customer_id, lang=lang, today=_today())
     if not ctx_meta["has_account"]:
         return StreamingResponse(
             iter([_sse({"type": "unavailable", "reason": "account_not_found"})]),

@@ -137,12 +137,12 @@ export function MessageBubble({ m, t, lang, onPick }: {
 
       {/* Tool calls (live while running, collapsible once done) */}
       {m.tools.length > 0 && (
-        <details open={running} className="w-full max-w-[88%] rounded-lg border border-border bg-muted/40 text-[12px]">
-          <summary className="flex cursor-pointer items-center gap-1.5 px-3 py-1.5 font-medium text-muted-foreground">
+        <details open={running} className="w-full max-w-[88%] text-[12px]">
+          <summary className="flex cursor-pointer items-center gap-1.5 py-1.5 font-medium text-muted-foreground select-none hover:text-foreground transition-colors">
             <Wrench className="h-3.5 w-3.5" />
             {m.tools.length} {t("assistant.toolsUsed")}
           </summary>
-          <div className="space-y-2 px-3 pb-2.5">
+          <div className="space-y-2 border-l border-border/60 ml-1.5 pl-3 mt-1 pb-2.5">
             {m.tools.map((tool, i) => {
               const meta = TOOL_LABEL[tool.name];
               const Icon = meta?.icon ?? Wrench;
@@ -206,11 +206,11 @@ export function MessageBubble({ m, t, lang, onPick }: {
 
       {/* Answer */}
       {error ? (
-        <div className="rounded-2xl rounded-bl-sm bg-destructive/10 px-3.5 py-2 text-[13px] text-destructive">
+        <div className="rounded-xl bg-destructive/10 px-3.5 py-2 text-[13px] text-destructive">
           {t("assistant.error")}
         </div>
       ) : m.content ? (
-        <div className="w-full max-w-[88%] rounded-2xl rounded-bl-sm bg-muted px-3.5 py-2.5">
+        <div className="w-full pt-1.5">
           <AnswerMd text={m.content} />
           {running && <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-foreground/40 align-middle" />}
           {(badge || m.routing) && !running && (
@@ -237,7 +237,7 @@ export function MessageBubble({ m, t, lang, onPick }: {
           )}
         </div>
       ) : running ? (
-        <div className="inline-flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-muted px-3.5 py-2 text-[13px] text-muted-foreground">
+        <div className="inline-flex items-center gap-1.5 py-2 text-[13px] text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("assistant.working")}
         </div>
       ) : null}

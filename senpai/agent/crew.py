@@ -26,6 +26,8 @@ import threading
 import time
 from typing import Callable, Iterator
 
+from senpai.agent.gather import run_agent_gather
+from senpai.agent.plan import coach_plan, rep_analyst_plan, researcher_plan
 from senpai.data import store
 from senpai.health.scoring import score_deal
 from senpai.llm import client
@@ -42,14 +44,17 @@ _RESEARCHER_SYS = (
     "あなたは大塚商会の営業チームのリサーチャーです。与えられた社内データ（案件情報・"
     "類似事例・日報・IT環境）だけを根拠に、この商談の事実関係を簡潔に整理します。"
     "推測や創作は禁止。金額・日付・固有名詞はデータのとおりに引用してください。"
+    "注意：絵文字（アイコン）は一切使用しないでください。"
 )
 _COACH_SYS = (
     "あなたは大塚商会のベテラン営業コーチです。健全性スコアとリスク信号を読み解き、"
     "この商談で担当者が見落としがちな点・リスクの本質を、根拠とともに簡潔に指摘します。"
+    "注意：絵文字（アイコン）は一切使用しないでください。"
 )
 _STRATEGIST_SYS = (
     "あなたは大塚商会の営業戦略家です。リサーチャーの事実とコーチの診断を統合し、"
     "次の打ち合わせに向けた具体的で実行可能な作戦を立てます。指定のMarkdown構成で出力。"
+    "注意：絵文字（アイコン）は一切使用しないでください。"
 )
 
 # A tool-call callback: each agent reports the tools it runs so the lane shows them.
@@ -61,18 +66,10 @@ def _run_researcher(d: dict, customer: str, emit: Emit) -> tuple[str, dict]:
     cust = store.get_customer(d["customer_id"]) or {}
     industry = cust.get("industry", "")
 
-    snapshot = impl.query_spr(deal_id=deal_id)
-    emit({"type": "agent_tool", "agent_id": "researcher", "name": "query_spr",
-          "summary": f"{deal_id} の案件サマリーと直近活動"})
-    comparables = impl.find_similar_deals_tool(customer=customer, industry=industry)
-    emit({"type": "agent_tool", "agent_id": "researcher", "name": "find_similar_deals",
-          "summary": "類似の成約事例を照合"})
-    notes = impl.search_notes(customer=customer, query="課題 リスク 懸念 予算 決裁", limit=4)
-    emit({"type": "agent_tool", "agent_id": "researcher", "name": "search_notes",
-          "summary": "関連する日報の課題シグナル"})
-    env = impl.lookup_customer_environment(customer=customer)
-    emit({"type": "agent_tool", "agent_id": "researcher", "name": "lookup_customer_environment",
-          "summary": "顧客のIT環境"})
+    # Gather runs on the orchestration engine (four tools in parallel); the engine
+    # emits the same agent_tool events, in the same order, via the gather adapter.
+    g = run_agent_gather(researcher_plan(deal_id, customer, industry), "researcher", emit)
+    snapshot, comparables, notes, env = g["snapshot"], g["comparables"], g["notes"], g["env"]
 
     grounding = (f"【案件】\n{snapshot}\n\n【類似事例】\n{comparables}\n\n"
                  f"【日報の課題】\n{notes}\n\n【IT環境】\n{env}")
@@ -89,9 +86,7 @@ def _run_researcher(d: dict, customer: str, emit: Emit) -> tuple[str, dict]:
 
 def _run_coach(d: dict, customer: str, emit: Emit) -> tuple[str, dict]:
     deal_id = d["deal_id"]
-    health = impl.score_deal_health(deal_id=deal_id)
-    emit({"type": "agent_tool", "agent_id": "coach", "name": "score_deal_health",
-          "summary": "健全性スコアとリスク信号"})
+    health = run_agent_gather(coach_plan(deal_id), "coach", emit)["health"]
 
     res = score_deal(d, store.activities_for_deal(deal_id))
     reasons = res.top_reasons(5)
@@ -227,12 +222,8 @@ def _rep_roster(limit: int = 5) -> list[str]:
 
 def _run_rep_analyst(rep_id: str, emit: Emit) -> tuple[str, dict]:
     name = store.rep_name(rep_id)
-    pipeline = impl.team_pipeline_overview(rep_id=rep_id)
-    emit({"type": "agent_tool", "agent_id": rep_id, "name": "team_pipeline_overview",
-          "summary": f"{name} のパイプライン概況"})
-    at_risk = impl.list_at_risk_deals(rep_id=rep_id, band="yellow", limit=5)
-    emit({"type": "agent_tool", "agent_id": rep_id, "name": "list_at_risk_deals",
-          "summary": "要注意案件の抽出"})
+    g = run_agent_gather(rep_analyst_plan(rep_id, name), rep_id, emit)
+    pipeline, at_risk = g["pipeline"], g["at_risk"]
     contribution = client.simple_complete(
         [{"role": "system", "content": _REP_ANALYST_SYS},
          {"role": "user", "content":

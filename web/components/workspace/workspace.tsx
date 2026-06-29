@@ -15,15 +15,12 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Bot,
   Building2,
   ChevronRight,
   CornerDownLeft,
   GraduationCap,
   Loader2,
-  Mic,
   Paperclip,
-  Sparkles,
   Square,
   TerminalSquare,
   Trash2,
@@ -307,8 +304,8 @@ function ReviewTurn({
   // so the conversation stays in the same thread instead of spawning a new one.
   if (candidates.length > 0) {
     return (
-      <div className="rounded-xl border border-band-yellow/40 bg-band-yellow/[0.06] p-4">
-        <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-band-yellow">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_4px_20px_-10px_rgba(16,24,40,0.2)]">
+        <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
           <UserRound className="h-3.5 w-3.5" />
           {candidates.length === 1
             ? (lang === "ja"
@@ -318,24 +315,30 @@ function ReviewTurn({
                 ? "メモの社名が複数の顧客に一致しました。どの顧客ですか？"
                 : "The name in the note matches several customers — which one?")}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col">
           {candidates.map((c) => (
             <button
               key={c.customer_id}
               onClick={() => onPick(turnId, c.deal_id ?? "", c.name)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-muted/60"
             >
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              {customerText(lang, c.name).text}
-              {c.deal_id && <span className="font-mono text-[10px] text-muted-foreground">{c.deal_id}</span>}
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 className="h-3 w-3 text-primary" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-foreground">{customerText(lang, c.name).text}</span>
+                {c.deal_id && <span className="block font-mono text-[10.5px] text-muted-foreground">{c.deal_id}</span>}
+              </span>
             </button>
           ))}
         </div>
-        <p className="mt-2.5 text-[11px] text-muted-foreground">
-          {lang === "ja"
-            ? "選択するとこのレビューがその顧客で読み込まれます。"
-            : "Pick one and this same review fills in for that customer."}
-        </p>
+        <div className="border-t border-border px-3 py-1.5 bg-muted/10">
+          <p className="text-[11px] text-muted-foreground">
+            {lang === "ja"
+              ? "選択するとこのレビューがその顧客で読み込まれます。"
+              : "Pick one and this same review fills in for that customer."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -454,8 +457,8 @@ function ResearchTurn({
   // conversation stays in the same turn — same as the /review and /account picks.
   if (candidates.length > 0 && !commentary) {
     return (
-      <div className="rounded-xl border border-band-yellow/40 bg-band-yellow/[0.06] p-4">
-        <div className="mb-2 flex items-center gap-1.5 text-[12.5px] font-semibold text-band-yellow">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_4px_20px_-10px_rgba(16,24,40,0.2)]">
+        <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
           <Building2 className="h-3.5 w-3.5" />
           {candidates.length === 1
             ? (lang === "ja" ? "この顧客で合っていますか？" : "Did you mean this customer?")
@@ -463,24 +466,30 @@ function ResearchTurn({
                 ? "複数の顧客に一致しました。どの顧客を調べますか？"
                 : "Several customers match — which one should I research?")}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col">
           {candidates.map((c) => (
             <button
               key={c.customer_id}
               onClick={() => onPick(turnId, c)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[12.5px] font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+              className="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-muted/60"
             >
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              {customerText(lang, c.name).text}
-              <span className="font-mono text-[10px] text-muted-foreground">{c.customer_id}</span>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 className="h-3 w-3 text-primary" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium text-foreground">{customerText(lang, c.name).text}</span>
+                <span className="block font-mono text-[10.5px] text-muted-foreground">{c.customer_id}</span>
+              </span>
             </button>
           ))}
         </div>
-        <p className="mt-2.5 text-[11px] text-muted-foreground">
-          {lang === "ja"
-            ? "選択するとこのリサーチがその顧客で読み込まれます。"
-            : "Pick one and this same research fills in for that customer."}
-        </p>
+        <div className="border-t border-border px-3 py-1.5 bg-muted/10">
+          <p className="text-[11px] text-muted-foreground">
+            {lang === "ja"
+              ? "選択するとこのリサーチがその顧客で読み込まれます。"
+              : "Pick one and this same research fills in for that customer."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -666,45 +675,51 @@ function AccountPickTurn({
   onPick: (customerId: string) => void;
 }) {
   return (
-    <div className="rounded-xl border border-band-yellow/40 bg-band-yellow/[0.06] p-4">
-      <div className="mb-3 flex items-center gap-1.5 text-[12.5px] font-semibold text-band-yellow">
+    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[0_4px_20px_-10px_rgba(16,24,40,0.2)]">
+      <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[12px] font-medium text-muted-foreground">
         <Building2 className="h-3.5 w-3.5" />
         {lang === "ja"
           ? "複数の候補が見つかりました。どの会社ですか？"
           : "Several customers match — which one did you mean?"}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col">
         {candidates.map((c) => {
           const isSuggested = c.customer_id === suggestedId;
           return (
             <button
               key={c.customer_id}
               onClick={() => onPick(c.customer_id)}
-              className={[
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-medium transition-colors",
-                isSuggested
-                  ? "border-primary/60 bg-primary/[0.07] text-primary hover:bg-primary/[0.14]"
-                  : "border-border bg-card text-foreground hover:border-primary/40 hover:text-primary",
-              ].join(" ")}
-            >
-              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-              {c.name}
-              <span className="font-mono text-[10px] text-muted-foreground">{c.customer_id}</span>
-              {isSuggested && (
-                <span className="ml-0.5 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
-                  {lang === "ja" ? "AI候補" : "AI pick"}
-                </span>
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors",
+                isSuggested ? "bg-primary/[0.07] hover:bg-primary/[0.12]" : "hover:bg-muted/60"
               )}
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 className="h-3 w-3 text-primary" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={cn("block font-medium", isSuggested ? "text-primary" : "text-foreground")}>
+                  {c.name}
+                  {isSuggested && (
+                    <span className="ml-2 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                      {lang === "ja" ? "AI候補" : "AI pick"}
+                    </span>
+                  )}
+                </span>
+                <span className="block font-mono text-[10.5px] text-muted-foreground">{c.customer_id}</span>
+              </span>
             </button>
           );
         })}
       </div>
       {suggestedId && (
-        <p className="mt-2.5 text-[11px] text-muted-foreground">
-          {lang === "ja"
-            ? "強調表示されているのはAIが最も可能性が高いと判断した候補です"
-            : "The highlighted option is the AI's best guess — click to confirm"}
-        </p>
+        <div className="border-t border-border px-3 py-1.5 bg-muted/10">
+          <p className="text-[11px] text-muted-foreground">
+            {lang === "ja"
+              ? "強調表示されているのはAIが最も可能性が高いと判断した候補です"
+              : "The highlighted option is the AI's best guess — click to confirm"}
+          </p>
+        </div>
       )}
     </div>
   );
@@ -1120,87 +1135,80 @@ export function Workspace({
     <div className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-3xl flex-col">
       <div className="flex-1 space-y-8 pb-6">
         {messages.length === 0 && (
-          <Row who="senpai" name={assistantName}>
-            <div className="rounded-xl rounded-tl-sm border border-border bg-card p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-              <h2 className="flex items-center gap-2 text-[16px] font-semibold tracking-tight">
-                <Bot className="h-4 w-4 text-primary" />
-                {lang === "ja" ? "Senpai ワークスペース" : "Senpai Workspace"}
-              </h2>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
-                {lang === "ja"
-                  ? "メモを貼り付けるか /review を使うと、構造化されたレビューがこのスレッドに固定されます。"
-                  : "Paste a note or type /review to pin a structured review into this thread."}
-              </p>
-              <div className="mt-4">
-                <div className="eyebrow mb-2">{t("chat.startExample")}</div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {examples.map((ex) => {
-                    const loc = coachExampleText(lang, ex);
-                    return (
-                      <button
-                        key={ex.title}
-                        disabled={busy}
-                        onClick={() => runChat(loc.engineNote)}
-                        className="rounded-lg border border-border bg-card px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03] disabled:opacity-50"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          <span className="text-[13px] font-medium text-foreground">{loc.title}</span>
-                        </div>
-                        <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{loc.hint}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+          <div className="py-6">
+            <p className="text-[15px] font-medium tracking-tight text-foreground">
+              {lang === "ja" ? "Senpai ワークスペース" : "Senpai Workspace"}
+            </p>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
+              {lang === "ja"
+                ? "顧客を調査する、商談をレビューする、戦略を立案する。"
+                : "Investigate a customer, review a deal, build a strategy."}
+            </p>
 
-                {/* P1: skill shortcut chips — real seed customers */}
-                <div className="eyebrow mb-2 mt-5">
-                  {lang === "ja" ? "スキルのショートカット" : "Skill shortcuts"}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {[
-                    {
-                      chip: "/review",
-                      hint: lang === "ja" ? "商談メモを貼り付けてレビュー" : "Paste a meeting note and review it",
-                      value: "/review ",
-                    },
-                    {
-                      chip: "/account Matsuda Office",
-                      hint: lang === "ja" ? "松田事務所の顧客ブリーフを取得" : "Pull account brief for Matsuda Office (C25)",
-                      value: "/account Matsuda Office",
-                    },
-                    {
-                      chip: "/research discount strategy",
-                      hint: lang === "ja" ? "値引き戦略を社内記録+Webで調査" : "Research discount strategy across internal + web",
-                      value: "/research discount strategy",
-                    },
-                  ].map((s) => (
+            <div className="mt-6">
+              <div className="eyebrow mb-3">{t("chat.startExample")}</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {examples.map((ex) => {
+                  const loc = coachExampleText(lang, ex);
+                  return (
                     <button
-                      key={s.chip}
+                      key={ex.title}
                       disabled={busy}
-                      onClick={() => {
-                        setInput(s.value);
-                        setShowPicker(false);
-                        composerRef.current?.focus();
-                      }}
-                      className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left font-mono text-[12.5px] transition-colors hover:border-primary/40 hover:bg-primary/[0.04] disabled:opacity-50"
+                      onClick={() => runChat(loc.engineNote)}
+                      className="rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03] disabled:opacity-50"
                     >
-                      <TerminalSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
-                      <span className="font-semibold text-foreground">{s.chip}</span>
-                      <span className="ml-auto text-[11px] font-sans text-muted-foreground">{s.hint}</span>
+                      <span className="block text-[13px] font-medium text-foreground">{loc.title}</span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{loc.hint}</span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
+              </div>
+
+              <div className="eyebrow mb-2.5 mt-6">
+                {lang === "ja" ? "スキルのショートカット" : "Skill shortcuts"}
+              </div>
+              <div className="flex flex-col gap-1">
+                {[
+                  {
+                    chip: "/review",
+                    hint: lang === "ja" ? "商談メモを貼り付けてレビュー" : "Paste a meeting note and review it",
+                    value: "/review ",
+                  },
+                  {
+                    chip: "/account Matsuda Office",
+                    hint: lang === "ja" ? "松田事務所の顧客ブリーフを取得" : "Pull account brief for Matsuda Office",
+                    value: "/account Matsuda Office",
+                  },
+                  {
+                    chip: "/research discount strategy",
+                    hint: lang === "ja" ? "値引き戦略を社内記録+Webで調査" : "Research discount strategy across internal + web",
+                    value: "/research discount strategy",
+                  },
+                ].map((s) => (
+                  <button
+                    key={s.chip}
+                    disabled={busy}
+                    onClick={() => {
+                      setInput(s.value);
+                      setShowPicker(false);
+                      composerRef.current?.focus();
+                    }}
+                    className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left font-mono text-[12.5px] transition-colors hover:bg-muted/60 disabled:opacity-50"
+                  >
+                    <span className="font-semibold text-foreground">{s.chip}</span>
+                    <span className="ml-auto text-[11px] font-sans text-muted-foreground">{s.hint}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          </Row>
+          </div>
         )}
 
         {messages.map((m) => {
           if (m.role === "user") {
             return (
               <Row key={m.id} who="user" name={t("chat.you")}>
-                <div className="rounded-xl rounded-tl-sm border border-border bg-card p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                <div className="py-0.5">
                   {m.dealLabel && (
                     <Badge variant="accent" className="mb-2 font-jp">{m.dealLabel}</Badge>
                   )}
@@ -1212,16 +1220,16 @@ export function Workspace({
           if (m.role === "system") {
             return (
               <Row key={m.id} who="senpai" name={assistantName}>
-                <div className="rounded-xl rounded-tl-sm border border-dashed border-border bg-muted/30 p-4 text-[13px] leading-relaxed text-muted-foreground">
+                <p className="py-0.5 text-[13px] leading-relaxed text-muted-foreground">
                   {m.text}
-                </div>
+                </p>
               </Row>
             );
           }
           if (m.role === "loading") {
             return (
               <Row key={m.id} who="senpai" name={assistantName}>
-                <div className="inline-flex items-center gap-2 rounded-xl rounded-tl-sm border border-border bg-card px-4 py-3 text-[13px] text-muted-foreground shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+                <div className="inline-flex items-center gap-2 py-1.5 text-[13px] text-muted-foreground">
                   <Dots /> {t(role === "manager" ? "chat.thinking.manager" : "chat.thinking")}
                 </div>
               </Row>
