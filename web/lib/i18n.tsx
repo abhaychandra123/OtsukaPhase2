@@ -71,6 +71,12 @@ const ja: Dict = {
   "nav.accounts": "アカウント",
   "nav.knowledge": "ナレッジ・ライブラリ",
   "nav.reports": "マイ成長",
+  // command center (junior home)
+  "cc.todayWork": "今日の商談",
+  "cc.todayWorkLead": "商談を選ぶと、コパイロットがその商談を前提に回答します。",
+  "cc.searchAccounts": "顧客・商談を検索",
+  "cc.noDeals": "該当する商談がありません。",
+  "cc.openAccount": "顧客情報",
   // manager nav
   "nav.dashboard": "ダッシュボード",
   "nav.pipeline": "パイプライン",
@@ -561,6 +567,12 @@ const en: Dict = {
   "nav.accounts": "Accounts",
   "nav.knowledge": "Knowledge Library",
   "nav.reports": "My Growth",
+  // command center (junior home)
+  "cc.todayWork": "Today's deals",
+  "cc.todayWorkLead": "Pick a deal to brief the Copilot on it.",
+  "cc.searchAccounts": "Search accounts or deals",
+  "cc.noDeals": "No matching deals.",
+  "cc.openAccount": "Account",
   "nav.dashboard": "Dashboard",
   "nav.pipeline": "Pipeline",
   "nav.coaching": "Coaching",

@@ -35,7 +35,7 @@ import { assembleReviewArtifact, assembleAccountArtifact, assembleResearchArtifa
 import type { CoachExample, DealRow, Principle } from "@/lib/types";
 import { useT } from "@/lib/i18n";
 import { customerText, coachExampleText } from "@/lib/content-i18n";
-import { useCachedState, useCachedConversationId, getCached } from "@/lib/chat-store";
+import { useCachedState, useCachedConversationId, getCached, useWorkspaceFocus } from "@/lib/chat-store";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -707,6 +707,21 @@ export function Workspace({
   const [attached, setAttached] = useState<{ fileName: string; text: string } | null>(null);
   const [attaching, setAttaching] = useState(false);
   const thread = useCachedConversationId(`workspace:${role}:thread:id`);
+
+  // Shared focus from the Command Center's Context pane. When the rep clicks a
+  // deal on the left, that deal becomes the grounding for the next turn — they
+  // never have to touch the Deal selector below. We only mirror focus → the
+  // local `dealId` when it actually changes, so the standalone Workspace (no
+  // Context pane writing focus) behaves exactly as before, and a manual pick in
+  // the selector isn't fought over on every render.
+  const { focus } = useWorkspaceFocus(role);
+  const lastFocusDeal = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (focus.dealId && focus.dealId !== lastFocusDeal.current) {
+      lastFocusDeal.current = focus.dealId;
+      setDealId(focus.dealId);
+    }
+  }, [focus.dealId]);
 
   const idRef = useRef<number>(-1);
   if (idRef.current < 0) idRef.current = messages.reduce((mx, m) => Math.max(mx, m.id), 0) + 1;
