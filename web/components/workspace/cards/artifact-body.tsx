@@ -166,7 +166,7 @@ function SectionBlock({
 }
 
 function CommentaryBlock({ artifact, label }: { artifact: Artifact; label: string }) {
-  if (!artifact.commentary) return null;
+  if (!artifact.commentary && artifact.status !== "building") return null;
   return (
     <div className="border-l-2 border-primary/40 pl-4 py-1">
       <div className="mb-2 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-primary">
@@ -175,7 +175,15 @@ function CommentaryBlock({ artifact, label }: { artifact: Artifact; label: strin
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
         )}
       </div>
-      <Markdown text={artifact.commentary} />
+      {artifact.commentary ? (
+        <Markdown text={artifact.commentary} />
+      ) : (
+        <div className="space-y-2 mt-3 w-3/4 opacity-40">
+          <div className="h-3 w-full animate-pulse rounded-full bg-muted-foreground/30" />
+          <div className="h-3 w-5/6 animate-pulse rounded-full bg-muted-foreground/30" />
+          <div className="h-3 w-4/6 animate-pulse rounded-full bg-muted-foreground/30" />
+        </div>
+      )}
     </div>
   );
 }

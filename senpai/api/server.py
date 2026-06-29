@@ -1095,6 +1095,7 @@ def research_stream(req: ChatRequest):
                     "customer": bundle.customer, "cached": False})
         for ev in _emit_bundle_sources(bundle):
             yield ev
+        yield _sse({"type": "deal_ids", "deal_ids": [deal_id]})
         yield from _summarize_research_bundle(bundle)
         return
 
@@ -1151,6 +1152,7 @@ def research_stream(req: ChatRequest):
                         "cached": False})
             for ev in _emit_bundle_sources(bundle):
                 yield ev
+            yield _sse({"type": "deal_ids", "deal_ids": [bundle.active_deal_id]})
             yield from _summarize_research_bundle(bundle)
             return
 
@@ -1159,6 +1161,11 @@ def research_stream(req: ChatRequest):
     if resolution.status == "resolved":
         for ev in _emit_bundle_sources(bundle):
             yield ev
+        # Emit deal ids so the client can show them in the evidence drawer.
+        if bundle.deals:
+            deal_ids = [d["deal_id"] for d in bundle.deals if d.get("deal_id")]
+            if deal_ids:
+                yield _sse({"type": "deal_ids", "deal_ids": deal_ids})
     else:
         yield _source_event("internal_records", "Internal Records", "not_found")
         yield _source_event("deals", "Deals", "skipped")

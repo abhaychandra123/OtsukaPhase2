@@ -79,7 +79,7 @@ def _run_researcher(d: dict, customer: str, emit: Emit) -> tuple[str, dict]:
              f"対象: {customer} / {d.get('deal_name', '')}\n\n"
              "以下の社内データだけを根拠に、この商談の事実関係を3〜5個の箇条書きで"
              f"簡潔に整理してください。\n\n{grounding}"}],
-        no_think=True, max_tokens=400)
+        no_think=True, max_tokens=400, fast_decomp=True)
     return contribution, {"snapshot": snapshot, "comparables": comparables,
                           "notes": notes, "env": env}
 
@@ -98,7 +98,7 @@ def _run_coach(d: dict, customer: str, emit: Emit) -> tuple[str, dict]:
              f"健全性: {health}\n\nリスク要因:\n{reason_block}\n\n"
              "この商談で担当者が特に注意すべき点とリスクの本質を、3点以内で"
              "簡潔に指摘してください。"}],
-        no_think=True, max_tokens=350)
+        no_think=True, max_tokens=350, fast_decomp=True)
     return contribution, {"health": health, "reasons": reasons}
 
 
@@ -202,7 +202,7 @@ _REP_ANALYST_SYS = (
     "べき点を、具体的な案件IDを挙げて簡潔に示します。推測や創作は禁止。"
 )
 _TEAM_LEAD_SYS = (
-    "あなたは大塚商会の営業マネージャーです。各担当のアナリスト所見を統合し、"
+    "あなたは大塚商会の営業マネージャーです。各担当のパイプラインと要注意案件を統合し、"
     "チーム全体で今週優先すべきアクションを、指定のMarkdown構成で簡潔にまとめます。"
 )
 
@@ -224,13 +224,7 @@ def _run_rep_analyst(rep_id: str, emit: Emit) -> tuple[str, dict]:
     name = store.rep_name(rep_id)
     g = run_agent_gather(rep_analyst_plan(rep_id, name), rep_id, emit)
     pipeline, at_risk = g["pipeline"], g["at_risk"]
-    contribution = client.simple_complete(
-        [{"role": "system", "content": _REP_ANALYST_SYS},
-         {"role": "user", "content":
-             f"担当: {name}\n\n【パイプライン】\n{pipeline}\n\n【要注意案件】\n{at_risk}\n\n"
-             "この担当者について、マネージャーが今週コーチングで重点を置くべき点を"
-             "2〜3点、具体的な案件IDを挙げて簡潔にまとめてください。"}],
-        no_think=True, max_tokens=300)
+    contribution = f"【パイプライン概況】\n{pipeline}\n\n【要注意案件】\n{at_risk}"
     return contribution, {"pipeline": pipeline, "at_risk": at_risk}
 
 
@@ -239,7 +233,7 @@ def _run_team_lead(cards: dict[str, str]) -> str:
     return client.simple_complete(
         [{"role": "system", "content": _TEAM_LEAD_SYS},
          {"role": "user", "content":
-             f"各担当アナリストの所見:\n\n{joined}\n\n"
+             f"各担当の状況（パイプライン・要注意案件）:\n\n{joined}\n\n"
              "チーム全体で、マネージャーが今週優先すべきアクションを以下の構成でまとめてください。\n"
              "### 🚩 最優先（今日対応）\n（1〜2件・担当と案件IDを明記）\n"
              "### 📋 今週のコーチング重点\n（2〜3点）\n"

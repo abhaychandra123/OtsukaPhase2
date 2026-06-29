@@ -1,4 +1,4 @@
-﻿// Typed client for the Senpai FastAPI bridge. Every call falls back to the
+// Typed client for the Senpai FastAPI bridge. Every call falls back to the
 // committed fixtures when the API is unreachable, so the demo never shows a
 // broken screen â€” it shows real-shaped data and a small "offline" hint.
 
@@ -294,6 +294,7 @@ export type ChatEvent =
   | { type: "resolve"; status: "resolved" | "ambiguous" | "not_found"; query: string; customer?: unknown; candidates?: ResolveCandidate[] }
   | { type: "context"; status: "active"; conversation_id?: string; deal_id?: string | null; customer?: unknown; cached?: boolean }
   | { type: "deal_choices"; status: "ambiguous"; deals: unknown[] }
+  | { type: "deal_ids"; deal_ids: string[] }
   | { type: "source"; key: string; label: string; status: "found" | "not_found" | "ambiguous" | "skipped" | "error"; count?: number; detail?: string }
   | { type: "web"; status: "found" | "not_found" | "error"; query: string; answer?: string; results?: { title?: string; url?: string; content?: string }[]; live?: boolean; reason?: string }
   | { type: "delta"; text: string }

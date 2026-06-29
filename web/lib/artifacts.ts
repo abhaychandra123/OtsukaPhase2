@@ -254,21 +254,22 @@ export interface ResearchSourceLine { label: string; status: string; count?: num
 export function assembleResearchArtifact(opts: {
   threadId: string; turnId: string; live: boolean; lang: "ja" | "en";
   answer: string; sources: ResearchSourceLine[]; webUrls: string[]; entity?: EntityRef;
+  dealIds?: string[];
 }): Artifact {
   const ja = opts.lang === "ja";
   const sections: ArtifactSection[] = [];
-  if (opts.sources.length) {
-    sections.push({
-      key: "sources", titleJa: "参照したソース", titleEn: "Sources consulted", icon: "search",
-      body: opts.sources.map((s) =>
-        `**${s.label}:** ${s.status}${s.count != null ? ` (${s.count})` : ""}`),
-    });
-  }
 
   const evidence: EvidenceRef[] = [];
   if (opts.entity) {
     evidence.push({ kind: opts.entity.type === "account" ? "spr" : "deal",
                     id: opts.entity.id, label: opts.entity.name });
+  }
+  if (opts.dealIds) {
+    for (const did of opts.dealIds) {
+      if (!evidence.some((e) => e.id === did)) {
+        evidence.push({ kind: "deal", id: did });
+      }
+    }
   }
   for (const u of opts.webUrls) {
     let host = u;

@@ -107,7 +107,7 @@ def _prep(messages: list[dict], no_think: bool) -> list[dict]:
 
 def simple_complete(messages: list[dict], temperature: float = 0.3,
                     max_tokens: int | None = None, *, no_think: bool = False,
-                    allow_fallback: bool = True) -> str:
+                    allow_fallback: bool = True, fast_decomp: bool = False) -> str:
     """One plain completion, no tools. Raises on transport error so callers
     (e.g. narration) can fall back to a templated string. Strips any
     `<think>...</think>` reasoning span (the served model is a reasoning
@@ -115,17 +115,19 @@ def simple_complete(messages: list[dict], temperature: float = 0.3,
     reasoning phase (low latency); `allow_fallback=False` pins the request to the
     primary endpoint and re-raises instead of silently switching models."""
     msgs = _prep(messages, no_think)
+    primary_c, primary_m, alt_c, alt_m = (
+        _synth_route(no_think) if fast_decomp else (client, config.MODEL, fallback_client, config.FALLBACK_MODEL))
     try:
-        resp = client.chat.completions.create(
-            model=config.MODEL, messages=msgs, temperature=temperature,
+        resp = primary_c.chat.completions.create(
+            model=primary_m, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS, **_gen_kwargs(no_think),
         )
     except Exception as e:
         if not allow_fallback:
             raise
-        print(f"⚠️ Primary server failed ({e}). Trying fallback...")
-        resp = fallback_client.chat.completions.create(
-            model=config.FALLBACK_MODEL, messages=msgs, temperature=temperature,
+        print(f"⚠️ Primary server {primary_m} failed ({e}). Trying fallback...")
+        resp = alt_c.chat.completions.create(
+            model=alt_m, messages=msgs, temperature=temperature,
             max_tokens=max_tokens or config.LLM_MAX_TOKENS, **_gen_kwargs(no_think),
         )
     content = resp.choices[0].message.content or ""

@@ -20,6 +20,7 @@ import {
   CornerDownLeft,
   GraduationCap,
   Loader2,
+  Mic,
   Paperclip,
   Square,
   TerminalSquare,
@@ -37,11 +38,14 @@ import { useCachedState, useCachedConversationId, getCached } from "@/lib/chat-s
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ExecutionTimeline, type ExecutionPhase } from "@/components/agent/agent-lane";
 import { ArtifactCard } from "./artifact-card";
 import { MessageBubble, type Msg } from "@/components/assistant/message";
 import { ExperiencePanel } from "@/components/coach/similar-cases";
+import { AccountPickTurn, AccountTurn } from "./account-turn";
 import { CrewTurn } from "./crew-turn";
-import { parseInput } from "./slash";
+import { ReviewTurn } from "./review-turn";
+import { SlashPicker, parseInput } from "@/components/workspace/slash";
 
 // --- thread model -----------------------------------------------------------
 type AccountPickCandidate = { customer_id: string; name: string };
@@ -399,9 +403,15 @@ function ResearchTurn({
   const [sources, setSources] = useCachedState<ResearchSourceLine[]>(`ws:art:${key}:src`, []);
   const [webUrls, setWebUrls] = useCachedState<string[]>(`ws:art:${key}:web`, []);
   const [candidates, setCandidates] = useCachedState<ResolveCandidate[]>(`ws:art:${key}:cands`, []);
+  const [dealIds, setDealIds] = useCachedState<string[]>(`ws:art:${key}:deals`, []);
   const [done, setDone] = useCachedState<boolean>(`ws:art:${key}:done`, false);
   const [started, setStarted] = useCachedState<boolean>(`ws:art:${key}:started`, false);
+  const [collapsed, setCollapsed] = useCachedState<boolean>(`ws:art:${key}:coll`, false);
+  const [showArtifact, setShowArtifact] = useCachedState<boolean>(`ws:art:${key}:showart`, false);
   const startedRef = useRef(false);
+  const collapseRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => () => { if (collapseRef.current) clearTimeout(collapseRef.current); }, []);
 
   useEffect(() => {
     if (startedRef.current || started) return;
@@ -410,6 +420,7 @@ function ResearchTurn({
     let acc = "";
     let curSources: ResearchSourceLine[] = [];
     let curWebUrls: string[] = [];
+    let curDealIds: string[] = [];
 
     chatStream(query, [], "research", (e) => {
       switch (e.type) {
@@ -417,6 +428,10 @@ function ResearchTurn({
           // Ambiguous customer → surface candidates; the rep picks BEFORE we
           // research, so we never summarize the wrong company's records.
           if (e.status === "ambiguous" && e.candidates?.length) setCandidates(e.candidates);
+          break;
+        case "deal_ids":
+          curDealIds = [...curDealIds, ...e.deal_ids];
+          setDealIds(curDealIds);
           break;
         case "source":
           curSources = [...curSources, { label: e.label, status: e.status, count: e.count }];
@@ -448,6 +463,10 @@ function ResearchTurn({
       }
     }, { conversationId: artifact.threadId }).then(() => {
       setDone(true);
+      setTimeout(() => setShowArtifact(true), 300);
+      if (!collapsed) {
+        collapseRef.current = setTimeout(() => setCollapsed(true), 1100);
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -494,15 +513,53 @@ function ResearchTurn({
     );
   }
 
+  // Prevent flashing before the first stream event arrives.
+  if (candidates.length === 0 && sources.length === 0 && !commentary && !done) {
+    return null;
+  }
+
+  const phases: ExecutionPhase[] = [];
+  if (started || sources.length > 0) {
+    phases.push({
+      id: "researcher",
+      label: lang === "ja" ? "データを収集・分析中" : "Gathering and analyzing data",
+      emoji: "🔍",
+      status: done ? "done" : "running",
+      tools: sources.map(s => {
+        let hint = "";
+        if (s.status === "found") hint = lang === "ja" ? `${s.count ?? 1}件` : `Found ${s.count ?? 1}`;
+        else if (s.status === "skipped") hint = lang === "ja" ? "スキップ" : "Skipped";
+        else if (s.status === "not_found") hint = lang === "ja" ? "見つかりません" : "Not found";
+        else if (s.status === "ambiguous") hint = lang === "ja" ? "複数該当" : "Ambiguous";
+        else hint = s.status;
+        return { name: s.label, summary: `${s.label}: ${hint}` };
+      })
+    });
+  }
+
   const status: ArtifactStatus = done ? "ready" : "building";
   const merged = assembleResearchArtifact({
     threadId: artifact.threadId, turnId: artifact.turnId, live: artifact.live, lang,
-    answer: commentary ?? "", sources, webUrls, entity
+    answer: commentary ?? "", sources, webUrls, entity, dealIds
   });
   merged.status = status;
   merged.id = artifact.id;
 
-  return <ArtifactCard artifact={merged} />;
+  return (
+    <div className="flex flex-col gap-3 relative">
+      <ExecutionTimeline
+        phases={phases}
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        lang={lang}
+      />
+      {(showArtifact || done || commentary) && (
+        <div className={cn("transition-all duration-700", !commentary ? "opacity-0" : "opacity-100 animate-fade-up")}>
+          <ArtifactCard artifact={merged} />
+        </div>
+      )}
+    </div>
+  );
 }
 
 // A general chat turn. Streams one assistant reply over the SHARED thread
@@ -1146,25 +1203,7 @@ export function Workspace({
             </p>
 
             <div className="mt-6">
-              <div className="eyebrow mb-3">{t("chat.startExample")}</div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {examples.map((ex) => {
-                  const loc = coachExampleText(lang, ex);
-                  return (
-                    <button
-                      key={ex.title}
-                      disabled={busy}
-                      onClick={() => runChat(loc.engineNote)}
-                      className="rounded-lg border border-border px-3 py-2.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/[0.03] disabled:opacity-50"
-                    >
-                      <span className="block text-[13px] font-medium text-foreground">{loc.title}</span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{loc.hint}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="eyebrow mb-2.5 mt-6">
+              <div className="eyebrow mb-2.5">
                 {lang === "ja" ? "スキルのショートカット" : "Skill shortcuts"}
               </div>
               <div className="flex flex-col gap-1">
@@ -1184,7 +1223,17 @@ export function Workspace({
                     hint: lang === "ja" ? "値引き戦略を社内記録+Webで調査" : "Research discount strategy across internal + web",
                     value: "/research discount strategy",
                   },
-                ].map((s) => (
+                  {
+                    chip: "/crew D168",
+                    hint: lang === "ja" ? "案件D168の攻略プランを作成" : "Build a strategy for deal D168",
+                    value: "/crew D168",
+                  },
+                  {
+                    chip: "/team",
+                    hint: lang === "ja" ? "要注意案件とパイプライン概況を確認" : "Review at-risk deals and pipeline status",
+                    value: "/team",
+                  },
+                ].filter(s => role === "manager" || s.chip !== "/team").map((s) => (
                   <button
                     key={s.chip}
                     disabled={busy}
@@ -1193,7 +1242,7 @@ export function Workspace({
                       setShowPicker(false);
                       composerRef.current?.focus();
                     }}
-                    className="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-left font-mono text-[12.5px] transition-colors hover:bg-muted/60 disabled:opacity-50"
+                    className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-left font-mono text-[12.5px] transition-colors hover:border-primary/40 hover:bg-primary/[0.03] disabled:opacity-50 shadow-sm"
                   >
                     <span className="font-semibold text-foreground">{s.chip}</span>
                     <span className="ml-auto text-[11px] font-sans text-muted-foreground">{s.hint}</span>
