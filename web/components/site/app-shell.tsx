@@ -27,11 +27,14 @@ type NavItem = { href: string; key: string; icon: LucideIcon; group?: string };
 
 const NAV: Record<Role, NavItem[]> = {
   // Junior: the Command Center (Home) is the whole daily job — the old
-  // Workspace and Accounts pages now live inside it (chat + context panes), so
-  // they're gone from the rail. Knowledge / Reports / Ingestion are kept as a
-  // visually separated secondary group of occasional, deliberate tasks.
+  // Workspace lives inside it (chat + context panes), so it's gone from the
+  // rail. Accounts / Knowledge / Reports / Ingestion are a visually separated
+  // secondary group: Accounts is the browse-everything directory that
+  // complements the Home pane's focused daily work; the rest are occasional,
+  // deliberate tasks.
   junior: [
     { href: "/junior", key: "nav.home", icon: Home, group: "main" },
+    { href: "/junior/accounts", key: "nav.accounts", icon: Building2, group: "more" },
     { href: "/junior/knowledge", key: "nav.knowledge", icon: Library, group: "more" },
     { href: "/junior/reports", key: "nav.reports", icon: FileText, group: "more" },
     { href: "/junior/ingestion", key: "nav.ingestion", icon: Upload, group: "more" },

@@ -687,9 +687,12 @@ function AccountPickTurn({
 }
 
 export function Workspace({
-  examples, deals, principles = [], role = "junior",
+  examples, deals, principles = [], role = "junior", wide = false,
 }: {
   examples: CoachExample[]; deals: DealRow[]; principles?: Principle[]; role?: "junior" | "manager";
+  // When embedded in the Command Center we let the thread fill the available
+  // width instead of the standalone reading column (max-w-3xl).
+  wide?: boolean;
 }) {
   const { t, lang } = useT();
   // The assistant's name differs by role: a junior gets a seasoned mentor
@@ -714,7 +717,7 @@ export function Workspace({
   // local `dealId` when it actually changes, so the standalone Workspace (no
   // Context pane writing focus) behaves exactly as before, and a manual pick in
   // the selector isn't fought over on every render.
-  const { focus } = useWorkspaceFocus(role);
+  const { focus, setFocus } = useWorkspaceFocus(role);
   const lastFocusDeal = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (focus.dealId && focus.dealId !== lastFocusDeal.current) {
@@ -1024,7 +1027,7 @@ export function Workspace({
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-9rem)] max-w-3xl flex-col">
+    <div className={cn("mx-auto flex min-h-[calc(100vh-9rem)] flex-col", wide ? "max-w-none" : "max-w-3xl")}>
       <div className="flex-1 space-y-8 pb-6">
         {messages.length === 0 && (
           <Row who="senpai" name={assistantName}>
@@ -1249,34 +1252,58 @@ export function Workspace({
               className="min-h-[64px] resize-none border-0 bg-transparent font-jp shadow-none focus-visible:ring-0"
             />
             <div className="flex items-center justify-between gap-2 px-1 pt-1">
-              {/* Attach a deal to ground /review (and /research). Subordinate to
-                  the text box, and visibly "on" once a deal is attached. */}
-              <label
-                title={lang === "ja" ? "レビュー対象の案件を指定（任意）" : "Attach a deal to ground /review (optional)"}
-                className={cn(
-                  "flex h-8 max-w-[62%] items-center gap-1.5 rounded-lg border pl-2.5 pr-1 text-[12px] transition-colors focus-within:border-primary/50",
-                  dealId
-                    ? "border-primary/40 bg-primary/[0.06] text-primary"
-                    : "border-input bg-muted/40 text-muted-foreground",
-                )}
-              >
-                {dealId ? <Paperclip className="h-3.5 w-3.5 shrink-0" /> : <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />}
-                <span className="hidden shrink-0 sm:inline">{lang === "ja" ? "案件" : "Deal"}</span>
-                <select
-                  value={dealId}
-                  onChange={(e) => setDealId(e.target.value)}
-                  className="h-8 min-w-0 flex-1 cursor-pointer bg-transparent pr-1 text-[12px] outline-none [&>option]:text-foreground"
+              {/* Grounds /review (and /research) on a deal. Single source of
+                  truth with the Context pane via shared focus: a deal clicked on
+                  the left shows here as one chip; ✕ drops the grounding. When
+                  nothing is focused, a compact picker lets standalone callers
+                  (e.g. the Manager workspace, which has no Context pane) attach
+                  one — and that selection writes focus too, so they stay synced. */}
+              {dealId ? (
+                <span className="flex h-8 max-w-[62%] items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/[0.06] pl-2.5 pr-1 text-[12px] text-primary">
+                  <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                  {/* Canonical Japanese company name regardless of UI lang. */}
+                  <span className="truncate font-jp">{deals.find((d) => d.deal_id === dealId)?.customer ?? dealId}</span>
+                  <button
+                    type="button"
+                    title={lang === "ja" ? "対象の案件を解除" : "Clear focused deal"}
+                    onClick={() => {
+                      setDealId("");
+                      setFocus({});
+                      lastFocusDeal.current = undefined;
+                    }}
+                    className="ml-0.5 shrink-0 rounded p-1 transition-colors hover:bg-primary/10"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ) : (
+                <label
+                  title={lang === "ja" ? "レビュー対象の案件を指定（任意）" : "Attach a deal to ground /review (optional)"}
+                  className="flex h-8 max-w-[62%] items-center gap-1.5 rounded-lg border border-input bg-muted/40 pl-2.5 pr-1 text-[12px] text-muted-foreground transition-colors focus-within:border-primary/50"
                 >
-                  <option value="">{lang === "ja" ? "未選択" : "None"}</option>
-                  {deals.map((d) => (
-                    <option key={d.deal_id} value={d.deal_id}>
-                      {/* Proper company names stay Japanese (the canonical form,
-                          matching the grounded synthesis) regardless of UI lang. */}
-                      {d.deal_id} · {d.customer}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <Building2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                  <span className="hidden shrink-0 sm:inline">{lang === "ja" ? "案件" : "Deal"}</span>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (!id) return;
+                      const d = deals.find((x) => x.deal_id === id);
+                      setDealId(id);
+                      setFocus({ dealId: id, customerId: d?.customer_id, customerName: d?.customer });
+                      lastFocusDeal.current = id;
+                    }}
+                    className="h-8 min-w-0 flex-1 cursor-pointer bg-transparent pr-1 text-[12px] outline-none [&>option]:text-foreground"
+                  >
+                    <option value="">{lang === "ja" ? "案件を指定（任意）" : "Attach a deal…"}</option>
+                    {deals.map((d) => (
+                      <option key={d.deal_id} value={d.deal_id}>
+                        {d.deal_id} · {d.customer}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div className="flex items-center gap-2">
                 {/* Attach a file as context — its text is extracted (POST
                     /api/extract) and the assistant answers over it. Structured

@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
+import { AccountsIndex } from "@/components/account/accounts-index";
 
-// The accounts list is now the Context pane (and account drawer) of the Junior
-// Command Center at /junior. Individual accounts stay reachable at
-// /junior/accounts/[id]; this index route redirects so old links don't 404.
-export default function JuniorAccountsRedirect() {
-  redirect("/junior");
+// The browse-everything account directory. Complements the Command Center's
+// Context pane (focused daily work): this is the one-stop roll-up of every
+// account and its deals.
+export default function JuniorAccountsPage() {
+  return <AccountsIndex role="junior" />;
 }

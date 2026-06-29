@@ -30,6 +30,7 @@ import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { tagText, repText, departmentText, customerText } from "@/lib/content-i18n";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useState } from "react";
 import { DealDrawer } from "@/components/dashboard/deal-drawer";
 
@@ -544,6 +545,7 @@ export function GrowthDashboard({
   const sortedThreads = [...threads].sort(
     (a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3),
   );
+  const openThreads = threads.filter((th) => th.status === "open").length;
 
   return (
     <div className="space-y-6">
@@ -589,71 +591,82 @@ export function GrowthDashboard({
         <p className="mt-4 text-[13px] leading-relaxed text-foreground/80">{t("growth.encourage")}</p>
       </div>
 
-      {/* manager coaching feedback */}
-      <section>
-        <div className="eyebrow mb-1 flex items-center gap-1.5">
-          <MessageCircle className="h-3.5 w-3.5" />
-          {t("repcoach.threads")}
-        </div>
-        <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.coaching.sub")}</p>
-        {sortedThreads.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
-            {t("repcoach.noThreads")}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {sortedThreads.map((thread) => (
-              <ThreadCard key={thread.thread_id} thread={thread} />
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Deep-dive lenses — one at a time so the page stays scannable instead
+          of stacking every section on top of the summary above. */}
+      <Tabs defaultValue="skills">
+        <TabsList>
+          <TabsTrigger value="skills" className="gap-1.5">
+            <Sparkles className="h-3.5 w-3.5" /> {t("growth.skillsTitle")}
+          </TabsTrigger>
+          <TabsTrigger value="coaching" className="gap-1.5">
+            <MessageCircle className="h-3.5 w-3.5" /> {t("repcoach.threads")}
+            {openThreads > 0 && (
+              <span className="rounded-full bg-band-red/15 px-1.5 text-[10px] font-semibold text-band-red">{openThreads}</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="deals" className="gap-1.5">
+            <Building2 className="h-3.5 w-3.5" /> {t("growth.myDeals")}
+            {deals.length > 0 && (
+              <span className="rounded-full bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground">{deals.length}</span>
+            )}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* my deals */}
-      <section>
-        <div className="eyebrow mb-1 flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5" />
-          {t("growth.myDeals")}
-        </div>
-        <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.myDeals.sub")}</p>
-        {deals.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
-            {t("growth.myDeals.noDeals")}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {deals.map((deal) => (
-              <DealCard key={deal.deal_id} deal={deal} onOpen={openDeal} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* skill progression — expandable cards with real evidence */}
-        <section>
-          <div className="eyebrow mb-1">{t("growth.skillsTitle")}</div>
+        {/* Skills + monthly progression */}
+        <TabsContent value="skills" className="mt-4">
           <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.skillsSub")}</p>
-          <div className="space-y-2">
-            {g.skills.map((s) => (
-              <SkillCard
-                key={s.key}
-                skill={s}
-                lang={lang}
-                selected={selectedSkill === s.key}
-                onSelect={setSelectedSkill}
-              />
-            ))}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-2">
+              {g.skills.map((s) => (
+                <SkillCard
+                  key={s.key}
+                  skill={s}
+                  lang={lang}
+                  selected={selectedSkill === s.key}
+                  onSelect={setSelectedSkill}
+                />
+              ))}
+            </div>
+            <div>
+              <div className="eyebrow mb-1">{t("growth.monthlyTitle")}</div>
+              <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.monthlySkills")}</p>
+              <SkillProgressionChart monthly={g.monthly} lang={lang} highlighted={selectedSkill} />
+            </div>
           </div>
-        </section>
+        </TabsContent>
 
-        {/* monthly activity + skill overlay */}
-        <section>
-          <div className="eyebrow mb-1">{t("growth.monthlyTitle")}</div>
-          <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.monthlySkills")}</p>
-          <SkillProgressionChart monthly={g.monthly} lang={lang} highlighted={selectedSkill} />
-        </section>
-      </div>
+        {/* Manager coaching feedback */}
+        <TabsContent value="coaching" className="mt-4">
+          <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.coaching.sub")}</p>
+          {sortedThreads.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
+              {t("repcoach.noThreads")}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sortedThreads.map((thread) => (
+                <ThreadCard key={thread.thread_id} thread={thread} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* My deals */}
+        <TabsContent value="deals" className="mt-4">
+          <p className="mb-3 text-[11.5px] text-muted-foreground">{t("growth.myDeals.sub")}</p>
+          {deals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-6 text-center text-[13px] text-muted-foreground">
+              {t("growth.myDeals.noDeals")}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {deals.map((deal) => (
+                <DealCard key={deal.deal_id} deal={deal} onOpen={openDeal} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <DealDrawer
         dealId={drawerDealId}

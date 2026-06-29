@@ -7,13 +7,20 @@ export const dynamic = "force-dynamic";
 // the left, the Copilot (Workspace) on the right. Same server-side fetch the
 // standalone Workspace page used.
 export default async function JuniorHome() {
-  const [{ data: ex }, { data: db }, { data: pr }] = await Promise.all([
+  const [{ data: ex }, { data: db }, { data: pr }, { data: gr }] = await Promise.all([
     api.coachExamples(),
     api.dashboard(),
     api.principles(),
+    api.growth(),
   ]);
 
   return (
-    <CommandCenter examples={ex.examples} deals={db.deals} principles={pr.principles} role="junior" />
+    <CommandCenter
+      examples={ex.examples}
+      deals={db.deals}
+      principles={pr.principles}
+      profile={gr.growth}
+      role="junior"
+    />
   );
 }

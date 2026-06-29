@@ -42,6 +42,7 @@ export default function JuniorIngestionPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string>("");
+  const [dragOver, setDragOver] = useState(false);
 
   useEffect(() => {
     Promise.all([api.dashboard(), api.growth()]).then(([db, gr]) => {
@@ -107,6 +108,14 @@ export default function JuniorIngestionPage() {
     }
   }
 
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    if (extracting) return;
+    const f = e.dataTransfer.files?.[0];
+    if (f) onFile(f);
+  }
+
   const canSave = !!draft && !!customerId && !!dealId && !saving;
 
   return (
@@ -128,11 +137,33 @@ export default function JuniorIngestionPage() {
       <button
         onClick={() => fileRef.current?.click()}
         disabled={extracting}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card px-4 py-6 text-[13px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-60"
+        onDragOver={(e) => { e.preventDefault(); if (!extracting) setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={cn(
+          "flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-4 py-8 text-center transition-colors disabled:opacity-60",
+          dragOver ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40",
+        )}
       >
-        {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-        {extracting ? t("ingest.extracting") : t("ingest.upload")}
+        <span className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+          {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+          {extracting ? t("ingest.extracting") : t("ingest.upload")}
+        </span>
+        {!extracting && <span className="text-[11px] text-muted-foreground">{t("ingest.dropHint")}</span>}
       </button>
+
+      {/* First-run guidance: the steps that follow an upload, so a new rep knows
+          what to expect before the draft form appears. */}
+      {!draft && !extracting && !saved && (
+        <ol className="flex flex-col gap-2 text-[12px] text-muted-foreground sm:flex-row sm:gap-5">
+          {[t("ingest.step1"), t("ingest.step2"), t("ingest.step3")].map((s, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground">{i + 1}</span>
+              {s}
+            </li>
+          ))}
+        </ol>
+      )}
 
       {saved && (
         <div className="flex items-center gap-2 rounded-xl border border-conf-high/30 bg-conf-high/5 px-4 py-3 text-[13px] text-conf-high">
