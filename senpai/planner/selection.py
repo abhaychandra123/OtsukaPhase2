@@ -18,15 +18,73 @@ from senpai.data import store
 # The gather capabilities the planner may select from (documents is always the
 # terminal, so it is not part of the selectable gather set).
 GATHER_CAPABILITIES = ("conversation", "workspace", "crm", "knowledge", "web")
-DOC_KINDS = ("proposal", "pptx", "docx")
+# What the terminal produces. proposal/pptx/docx = generate an artifact file; note =
+# write a text file into the workspace; organize = tidy the workspace on disk.
+DOC_KINDS = ("proposal", "pptx", "docx", "note", "organize")
 
 _DEAL_ID_RE = re.compile(r"\bD\d{3}\b", re.IGNORECASE)
 _PROPOSAL_CUES = ("提案", "proposal", "提案書")
 # 稟議 (ringisho) is intentionally NOT here: it has its own dedicated template/tool
 # (generate_ringisho) and is routed to the ReAct loop, not the planner.
-_DOCX_CUES = ("文書", "報告書", "レポート", "docx", "document")
+_DOCX_CUES = ("文書", "報告書", "レポート", "docx", "document", "report")
 # External/factual cue (stale-in-weights topics) — reuse the doc tools' own heuristic.
 from senpai.tools.impl import _auto_web  # noqa: E402
+
+
+# --- planner intent detection (the router's source of truth) ----------------
+# Document GENERATION: a create verb + a document noun. 稟議 excluded (own tool).
+_DOC_VERB = (r"(?:make|create|generate|build|draft|write|produce|prepare|"
+             r"put\s+together|作って|作成|作る|生成|書いて|まとめて|用意|つくって)")
+_DOC_NOUN = (r"(?:proposal|deck|slides?|slide\s?deck|presentation|power\s?point|"
+             r"pptx?|ppt|docx?|word\s+doc(?:ument)?|document|report|"
+             r"提案書|提案|スライド|資料|プレゼン(?:テーション)?|文書|報告書|レポート)")
+_DOC_GOAL_RE = re.compile(
+    _DOC_VERB + r"\b.{0,40}?" + _DOC_NOUN + r"|" + _DOC_NOUN + r".{0,20}?(?:を|の)?\s*" + _DOC_VERB,
+    re.IGNORECASE)
+_RINGISHO_RE = re.compile(r"稟議|ringisho", re.IGNORECASE)
+
+# ORGANIZE: tidy/sort/reorganize the workspace on disk (a WRITE that moves files).
+_ORGANIZE_RE = re.compile(
+    r"\b(?:organi[sz]e|reorgani[sz]e|tidy(?:\s?up)?|clean\s?up|sort|file\s+away|declutter)\b"
+    r".{0,30}?(?:files?|documents?|docs?|folder|workspace)|"
+    r"(?:ファイル|資料|ドキュメント|文書|フォルダ|ワークスペース).{0,10}?"
+    r"(?:整理|片付け|仕分け|フォルダ分け|分類)|"
+    r"(?:整理|片付け|仕分け|フォルダ分け|分類)(?:して|する)?", re.IGNORECASE)
+
+# NOTE: save/write a short text file INTO the workspace (not a generated artifact).
+_NOTE_RE = re.compile(
+    r"\b(?:save|jot(?:\s+down)?|record|note\s+down|write\s+(?:a\s+|this\s+)?(?:note|down))\b"
+    r".{0,40}?(?:my\s+)?(?:files?|documents?|docs?|workspace|note|\.md|\.txt)|"
+    r"(?:save|write|append).{0,20}?(?:to|into)\s+[\w./-]+\.(?:md|txt|json|csv)|"
+    r"(?:メモ|ノート|記録)(?:を|に)?.{0,10}?(?:保存|作成|残|書|追記)|"
+    r"(?:ファイル|資料|文書)(?:に|へ).{0,10}?(?:保存|書き込|追記|記録)", re.IGNORECASE)
+
+# Explicit "actually do it" for the destructive organize (otherwise preview only).
+_APPLY_RE = re.compile(r"\b(?:apply|do\s+it|go\s+ahead|confirm|execute)\b|実行|適用|やって",
+                       re.IGNORECASE)
+
+
+def is_organize_goal(message: str) -> bool:
+    return bool(_ORGANIZE_RE.search(message or ""))
+
+
+def is_note_goal(message: str) -> bool:
+    return bool(_NOTE_RE.search(message or ""))
+
+
+def is_document_goal(message: str) -> bool:
+    m = message or ""
+    if _RINGISHO_RE.search(m):
+        return False
+    return bool(_DOC_GOAL_RE.search(m))
+
+
+def is_planner_goal(message: str) -> bool:
+    """Any goal the LLMPlanner owns: organize / note-write / document generation.
+    Order matters — organize and note are checked first because their phrasings can
+    also contain a document noun ('organize my documents')."""
+    return (is_organize_goal(message) or is_note_goal(message)
+            or is_document_goal(message))
 
 
 @dataclass(frozen=True)
@@ -42,6 +100,8 @@ class Selection:
     lang: str = "ja"
     title: str = ""
     reason: str = ""                       # why these capabilities (observability)
+    confirm: bool = False                  # apply a destructive op (organize); else preview
+    path: str = ""                         # target file for a note write (optional)
 
     def with_capabilities(self, caps) -> "Selection":
         ordered = tuple(c for c in GATHER_CAPABILITIES if c in set(caps))
@@ -79,6 +139,11 @@ def _resolve_entity(goal: str, deal_hint: str | None = None) -> tuple[str | None
 
 def _pick_doc_kind(goal: str, deal_id: str | None) -> str:
     g = (goal or "")
+    # Workspace ops win over document generation (their phrasing overlaps).
+    if is_organize_goal(g):
+        return "organize"
+    if is_note_goal(g):
+        return "note"
     if deal_id or any(c in g.lower() or c in g for c in _PROPOSAL_CUES):
         # A grounded proposal needs a deal; without one it degrades to a free deck.
         return "proposal" if deal_id else "pptx"
@@ -100,6 +165,12 @@ def heuristic_selection(goal: str, deal_hint: str | None = None) -> Selection:
     topics with no internal entity."""
     deal_id, customer_id, target = _resolve_entity(goal, deal_hint)
     doc_kind = _pick_doc_kind(goal, deal_id)
+
+    # Organize is self-contained (it inspects the workspace itself) — no gather.
+    if doc_kind == "organize":
+        return Selection(goal=goal, capabilities=(), doc_kind="organize",
+                         lang=_lang_of(goal), confirm=bool(_APPLY_RE.search(goal or "")),
+                         reason="heuristic: organize workspace")
 
     caps = ["conversation", "workspace"]
     if customer_id or deal_id:

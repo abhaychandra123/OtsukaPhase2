@@ -26,6 +26,19 @@ def _tmp_generated(tmp_path, monkeypatch):
     return tmp_path / "generated"
 
 
+@pytest.fixture
+def _sample_workspace(tmp_path, monkeypatch):
+    """A hermetic workspace so file-grounding tests never depend on the configured
+    (real) WORKSPACE_ROOT. sandbox.workspace_root() re-reads config each call."""
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    (ws / "murata_printing_display_quote.txt").write_text(
+        "有限会社村田印刷 様\nディスプレイ案件 見積書 (D001)\n"
+        "27インチモニター (MON27) × 4台: ¥204,000\n", encoding="utf-8")
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", ws)
+    return ws
+
+
 # --- selection: which capabilities, which doc kind, which (grounded) entity -----
 def test_selection_proposal_resolves_real_deal():
     sel = heuristic_selection("Generate a proposal for D001")
@@ -76,7 +89,7 @@ def test_planner_plan_returns_execution_plan():
 
 
 # --- end to end: plan → engine → bundle → artifact (proposal path, GPU-free) -----
-def test_run_document_goal_produces_registered_proposal(_tmp_generated):
+def test_run_document_goal_produces_registered_proposal(_tmp_generated, _sample_workspace):
     from senpai.documents import registry
     convo = [
         {"role": "user", "content": "村田印刷にいくら見積もった？"},
@@ -159,3 +172,76 @@ def test_authored_deck_degrades_without_model(_tmp_generated):
     ev = cap.run("pptx", {"goal": "best gaming laptops"}, _ctx({}))
     assert ev.status == "error"
     assert not _tmp_generated.exists() or not list(_tmp_generated.glob("*.pptx"))
+
+
+# --- workspace WRITE terminals: note + organize (hermetic, GPU-free) -------------
+def test_organize_previews_then_applies(tmp_path, monkeypatch):
+    from senpai import config
+    from senpai.planner import run_document_goal
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "murata_見積書.txt").write_text("q", encoding="utf-8")
+    (ws / "yamato_proposal.md").write_text("p", encoding="utf-8")
+    (ws / "endo_議事録.md").write_text("m", encoding="utf-8")
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", ws)
+
+    # Preview never moves anything.
+    prev = run_document_goal("organize my files")
+    assert prev["selection"]["doc_kind"] == "organize"
+    assert {p.name for p in ws.iterdir() if p.is_file()} == {
+        "murata_見積書.txt", "yamato_proposal.md", "endo_議事録.md"}
+
+    # Apply buckets by topic and leaves only subfolders at the root.
+    run_document_goal("organize my files and apply")
+    assert (ws / "quotes" / "murata_見積書.txt").is_file()
+    assert (ws / "proposals" / "yamato_proposal.md").is_file()
+    assert (ws / "meeting-notes" / "endo_議事録.md").is_file()
+    assert not [p for p in ws.iterdir() if p.is_file()]  # nothing loose at the root
+
+
+def test_organize_move_is_sandbox_safe_and_no_overwrite(tmp_path, monkeypatch):
+    from senpai import config
+    from senpai.workspace import sandbox
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", tmp_path)
+    (tmp_path / "a.txt").write_text("1", encoding="utf-8")
+    (tmp_path / "sub").mkdir()
+    (tmp_path / "sub" / "a.txt").write_text("2", encoding="utf-8")
+    with pytest.raises(sandbox.SandboxError):
+        sandbox.move_within("a.txt", "../escape.txt")         # can't leave the root
+    with pytest.raises(sandbox.SandboxError):
+        sandbox.move_within("a.txt", "sub/a.txt")             # never overwrites
+
+
+def test_note_write_persists_grounded_file(tmp_path, monkeypatch):
+    from senpai import config
+    from senpai.planner import run_document_goal
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", ws)
+    monkeypatch.setattr(config, "GENERATED_DIR", tmp_path / "gen")
+    convo = [
+        {"role": "assistant", "content": "村田印刷は¥204,000の見積を提示済み。"},
+        {"role": "user", "content": "save this as a note to murata_followup.md"},
+    ]
+    r = run_document_goal("save this as a note to murata_followup.md", conversation=convo)
+    assert r["selection"]["doc_kind"] == "note"
+    saved = ws / "murata_followup.md"
+    assert saved.is_file()
+    assert "204,000" in saved.read_text(encoding="utf-8")     # grounded on the conversation
+
+
+# --- opt-in integration: exercise the REAL configured workspace (skipped if absent) --
+def test_real_workspace_is_searchable_if_configured():
+    """Unit tests are hermetic on purpose; this one intentionally hits the *configured*
+    WORKSPACE_ROOT so 'does it see my real folder' is covered — skipped when that folder
+    doesn't exist (CI / another machine), so it never makes the suite fragile."""
+    from senpai.workspace import sandbox
+    root = sandbox.workspace_root()
+    if not root.is_dir():
+        pytest.skip(f"configured WORKSPACE_ROOT does not exist: {root}")
+    docs = sandbox.list_documents()
+    # Whatever is there, discovery must stay inside the root and never surface our own
+    # generated output (the feedback-loop guard).
+    assert all("generated" not in sandbox.rel(p).lower().split("/")[0] for p in docs)

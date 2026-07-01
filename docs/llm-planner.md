@@ -142,19 +142,30 @@ call sits inside a gather capability.
   pptx (default). **`稟議` (ringisho) is intentionally excluded** — it has its own
   dedicated template (`generate_ringisho`) and stays in the ReAct loop.
 
-### `capabilities.py` — six thin adapters + the terminal producer
+### `capabilities.py` — gather adapters + three terminal producers
+Gather (all emit a uniform `{"text","label"}`, degrade to empty, never raise):
 - **`ConversationCapability`** → `impl._conversation_grounding` over the published convo.
 - **`WorkspaceCapability`** → `impl._workspace_grounding` (relevance-gated find→extract).
 - **`CRMCapability`** → `impl.query_spr` for the resolved deal/customer.
 - **`KnowledgeCapability`** → `impl.search_knowledge` (attributed playbook snippets).
 - **`WebCapability`** → `impl.web_search`.
-  All five emit a uniform `{"text", "label"}` so the terminal can concatenate them
-  regardless of which were selected; all degrade to empty, never raise.
-- **`DocumentsCapability`** (the terminal, `op` = doc kind) — reads `ctx.deps`,
-  assembles the grounding block **most-specific-first** (conversation → workspace → crm →
-  knowledge → web), then authors + renders + **registers** the file, reusing
-  `author`/`proposal`/`render`/`registry`. It does **not** re-gather. Emits an artifact
-  Evidence carrying `{text, document:{doc_id,…}, grounded_on:[…]}`.
+
+Terminals (exactly one runs, chosen by `doc_kind`; all read `ctx.deps`, none re-gather):
+- **`DocumentsCapability`** (`op` = proposal/pptx/docx) — assembles the grounding block
+  **most-specific-first** (conversation → workspace → crm → knowledge → web), then
+  authors + renders + **registers** a downloadable file, reusing
+  `author`/`proposal`/`render`/`registry`. Emits `{text, document:{doc_id,…},
+  grounded_on:[…]}`.
+- **`WorkspaceWriteCapability`** (`op="note"`) — WRITES a short markdown note **into the
+  workspace** (a persisted file the rep keeps, not a download), authored from the same
+  gathered grounding. Reuses the existing sandbox-checked, confirm-gated
+  `impl.edit_workspace_document`; it never opens a path itself.
+- **`WorkspaceOrganizeCapability`** (`op="plan"|"apply"`) — TIDIES the workspace: buckets
+  loose root-level documents into topic folders (quotes / proposals / meeting-notes /
+  reports / contracts / other) by a deterministic filename classifier. `plan` previews
+  (read-only, the default — moving real files is destructive); `apply` performs the
+  moves via the sandbox's no-overwrite `move_within`. Files already in a subfolder are
+  left alone. This is a self-contained terminal — it has **no gather** graph.
 
 ### `plan.py` — the fixed DAG
 - **`document_plan(selection)`** — gather tasks at level 0 (parallel, no deps), one
@@ -189,12 +200,22 @@ prompt. `senpai/api/server.py`'s `chat()` routes by intent:
            ─►  otherwise                  → stream_chat_turn       (the ReAct tool loop)
 ```
 
-- **`_is_document_goal(message)`** fires only when the message pairs a *create* verb
-  (make / create / generate / build / draft / write / 作成 / 作って / まとめて …) with a
-  *document* noun (proposal / deck / slides / pptx / docx / report / 提案書 / スライド /
-  資料 / 報告書 …). It's kept tight so ordinary tool asks — "draft an email", "make a
-  quote", "tell me about X", "D168 のリスクを教えて" — stay in the ReAct loop. `稟議`
-  is excluded.
+- **`_is_planner_goal(message)`** (in `selection.py`, aliased into the server) is the
+  router. It fires for three intents, all owned by the planner:
+  - **document generation** — a *create* verb (make / generate / 作成 / 作って …) + a
+    *document* noun (proposal / deck / pptx / docx / report / 提案書 / スライド …);
+  - **note write** — save / jot / record / メモ / 保存 aimed at a file, a note, or `.md`/
+    `.txt` ("save this as a note to murata_followup.md");
+  - **organize** — organize / tidy / sort / 整理 / 片付け over files / documents / the
+    workspace.
+  Organize and note are checked first (their phrasing can also contain a document noun).
+  It stays tight so ordinary tool asks — "draft an email", "make a quote", "tell me about
+  X", "D168 のリスクを教えて" — stay in the ReAct loop. `稟議` is excluded.
+- **Destructive ops are preview-first.** `organize` defaults to `op="plan"` (read-only —
+  it lists the moves it *would* make); it only performs moves when the goal carries an
+  explicit apply cue (apply / do it / 実行 / やって). So "organize my files" shows the
+  plan; "organize my files and apply" moves them. `move_within` never overwrites and
+  never leaves the sandbox root.
 - **`_plan_stream(goal, convo, role, deal_id)`** is the shared SSE generator used by both
   the auto-routed chat turn and the dedicated `POST /api/plan`. It emits the **same event
   shapes the chat UI already renders** — `plan | context | tool | document | answer |
@@ -281,8 +302,13 @@ the deterministic heuristic (which would have included `crm`).
   intentionally tight, but it does not split compound requests. Acceptable for milestone
   1; a future planner could emit a plan that includes a Reasoner answer alongside the
   artifact.
-- **One document per goal.** The plan has a single terminal `documents` task. "Make a
-  deck and a one-pager" is not yet expressible.
+- **One terminal per goal.** The plan has a single terminal (documents / note write /
+  organize). "Make a deck **and** a one-pager" is not yet expressible.
+- **Organize is a deterministic filename classifier.** It buckets by keywords in the
+  file *name* (見積/quote → quotes, 提案/proposal → proposals, …), not by reading content.
+  It's predictable and GPU-free; an LLM-refined taxonomy (read a bit of each file, infer
+  the folder) is a natural upgrade. It only reorganizes files sitting at the workspace
+  *root* — already-filed documents in subfolders are left alone.
 - **Ringisho stays in the ReAct loop.** `generate_ringisho` has a bespoke template the
   planner doesn't model, so 稟議 requests are excluded from routing. Folding it in is a
   small follow-up (add a `ringisho` doc kind + capability op).

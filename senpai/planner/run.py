@@ -47,7 +47,11 @@ def run_document_goal(goal: str, *, conversation: list[dict] | None = None,
     bundle: EvidenceBundle = ExecutionEngine(registry or build_registry()).run(
         plan, emit or _NOOP)
 
-    doc = bundle.get("documents")
+    # The terminal task is the one nothing else depends on (documents / workspace_write
+    # / workspace_organize) — read its fragment as the artifact, whatever the kind.
+    depended = {d for t in plan.tasks for d in t.depends_on}
+    terminal = next((t for t in reversed(plan.tasks) if t.id not in depended), None)
+    doc = bundle.get(terminal.id) if terminal else None
     document = None
     text = ""
     grounded_on: list[str] = []

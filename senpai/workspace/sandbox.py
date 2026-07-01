@@ -52,7 +52,10 @@ def list_documents() -> list[Path]:
         return []
     
     out: list[Path] = []
-    ignore_dirs = {".git", "node_modules", ".venv", "venv", ".next", "__pycache__", "dist"}
+    # `generated` is our own machine output (config.GENERATED_DIR): excluding it stops
+    # a just-generated deck/doc from feeding back as "grounding" into the next one.
+    ignore_dirs = {".git", "node_modules", ".venv", "venv", ".next", "__pycache__",
+                   "dist", "generated"}
     
     for dirpath, dirnames, filenames in os.walk(root):
         # Prune ignored directories in-place so os.walk doesn't descend into them
@@ -67,6 +70,24 @@ def list_documents() -> list[Path]:
             except SandboxError:
                 continue
     return out
+
+
+def move_within(src: str | Path, dst_rel: str | Path) -> str:
+    """Move a file to `dst_rel` (relative to the root), both sandbox-checked. Never
+    overwrites (raises SandboxError on collision), never leaves the root, creates the
+    destination folder. Returns the new path relative to the root. This is the only
+    move primitive — organize/tidy go through it, so a reorganize can't clobber a file
+    or escape the workspace."""
+    import shutil
+    s = safe_path(src)
+    if not s.is_file():
+        raise SandboxError(f"source is not a file: {src!r}")
+    d = safe_path(dst_rel)
+    if d.exists():
+        raise SandboxError(f"destination already exists: {dst_rel!r}")
+    d.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(s), str(d))
+    return rel(d)
 
 
 def rel(path: Path) -> str:

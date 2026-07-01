@@ -22,6 +22,15 @@ _DOCS = "documents"
 
 def document_plan(sel: Selection) -> ExecutionPlan:
     query = sel.goal
+
+    # Organize is a self-contained WRITE over the workspace — no gather graph.
+    if sel.doc_kind == "organize":
+        return ExecutionPlan(tasks=(Task(
+            id="workspace_organize", capability="workspace_organize",
+            op="apply" if sel.confirm else "plan", inputs={"confirm": sel.confirm},
+            policy=TaskPolicy(retries=0, on_failure="skip"),
+            group=_DOCS, summary="ワークスペースを整理"),))
+
     gather: list[Task] = []
 
     if "conversation" in sel.capabilities:
@@ -46,13 +55,22 @@ def document_plan(sel: Selection) -> ExecutionPlan:
                            inputs={"query": query}, group=_GATHER,
                            summary="Web検索でカバー"))
 
-    documents = Task(
-        id="documents", capability="documents", op=sel.doc_kind,
-        inputs={"goal": query, "prompt": query, "deal_id": sel.deal_id or "",
-                "target": sel.target, "lang": sel.lang, "title": sel.title},
-        depends_on=frozenset(t.id for t in gather),
-        # A WRITE deliverable: never auto-repeat, run after the grounding is in.
-        policy=TaskPolicy(retries=0, on_failure="skip"),
-        group=_DOCS, summary=f"{sel.doc_kind} を生成")
+    deps = frozenset(t.id for t in gather)
+    # A note WRITEs into the workspace; proposal/pptx/docx GENERATE a downloadable file.
+    if sel.doc_kind == "note":
+        terminal = Task(
+            id="workspace_write", capability="workspace_write", op="note",
+            inputs={"goal": query, "prompt": query, "path": sel.path, "lang": sel.lang},
+            depends_on=deps, policy=TaskPolicy(retries=0, on_failure="skip"),
+            group=_DOCS, summary="ノートを保存")
+    else:
+        terminal = Task(
+            id="documents", capability="documents", op=sel.doc_kind,
+            inputs={"goal": query, "prompt": query, "deal_id": sel.deal_id or "",
+                    "target": sel.target, "lang": sel.lang, "title": sel.title},
+            depends_on=deps,
+            # A WRITE deliverable: never auto-repeat, run after the grounding is in.
+            policy=TaskPolicy(retries=0, on_failure="skip"),
+            group=_DOCS, summary=f"{sel.doc_kind} を生成")
 
-    return ExecutionPlan(tasks=(*gather, documents))
+    return ExecutionPlan(tasks=(*gather, terminal))

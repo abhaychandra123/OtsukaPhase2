@@ -127,12 +127,20 @@ def test_general_tools_need_model(_tmp_generated):
 
 
 # --- grounding: general tools ground on conversation + workspace, not just CRM --
-def test_gather_grounding_uses_conversation_and_workspace():
+def test_gather_grounding_uses_conversation_and_workspace(tmp_path, monkeypatch):
     """A 'proposal for <company>' where the company lives in the rep's local files
     (and was discussed earlier) must ground on that file/conversation — and must NOT
-    inject an unrelated fuzzy CRM customer (the wrong-company-name hallucination)."""
+    inject an unrelated fuzzy CRM customer (the wrong-company-name hallucination).
+    Uses a hermetic workspace so it never depends on the configured WORKSPACE_ROOT."""
+    from senpai import config
     from senpai.tools import conversation as conv
     from senpai.tools import impl
+
+    ws = tmp_path / "workspace"
+    ws.mkdir()
+    (ws / "murata_printing_display_quote.txt").write_text(
+        "有限会社村田印刷 様\n27インチモニター × 4台: ¥204,000\n", encoding="utf-8")
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", ws)
 
     conv.set_conversation([
         {"role": "system", "content": "sys"},
@@ -152,10 +160,17 @@ def test_gather_grounding_uses_conversation_and_workspace():
     assert "【社内データ】" not in g              # CRM suppressed when workspace matched
 
 
-def test_gather_grounding_junk_gated_and_crm_fallback():
-    """An unrelated topic pulls no workspace junk; a real CRM customer still grounds."""
+def test_gather_grounding_junk_gated_and_crm_fallback(tmp_path, monkeypatch):
+    """An unrelated topic pulls no workspace junk; a real CRM customer still grounds.
+    The workspace root is pointed at an empty dir so the assertion is deterministic
+    regardless of what real files exist under the configured WORKSPACE_ROOT."""
+    from senpai import config
     from senpai.tools import conversation as conv
     from senpai.tools import impl
+
+    empty = tmp_path / "empty_workspace"
+    empty.mkdir()
+    monkeypatch.setattr(config, "WORKSPACE_ROOT", empty)  # sandbox re-reads config each call
 
     conv.set_conversation(None)
     assert impl._workspace_grounding("best gaming laptops under 1000000 yen") == ""

@@ -905,27 +905,16 @@ def _is_file_scoped(message: str) -> bool:
     return bool(_FILE_SCOPE_RE.search(message or ""))
 
 
-# Document-generation intent → the LLMPlanner (capability graph), not the ReAct
-# loop. A goal qualifies when it pairs a *create* verb with a *document* noun
-# (proposal / deck / slides / docx / report …). Kept tight so ordinary tool asks
-# ("draft an email", "make a quote", "tell me about X") stay in the chat loop.
-# 稟議 (ringisho) is excluded — it has its own dedicated template/tool.
-_DOC_VERB = (r"(?:make|create|generate|build|draft|write|produce|prepare|"
-             r"put\s+together|作って|作成|作る|生成|書いて|まとめて|用意|つくって)")
-_DOC_NOUN = (r"(?:proposal|deck|slides?|slide\s?deck|presentation|power\s?point|"
-             r"pptx?|ppt|docx?|word\s+doc(?:ument)?|document|report|"
-             r"提案書|提案|スライド|資料|プレゼン(?:テーション)?|文書|報告書|レポート)")
-_DOC_GOAL_RE = re.compile(
-    _DOC_VERB + r"\b.{0,40}?" + _DOC_NOUN + r"|" + _DOC_NOUN + r".{0,20}?(?:を|の)?\s*" + _DOC_VERB,
-    re.IGNORECASE)
-_DOC_EXCLUDE_RE = re.compile(r"稟議|ringisho", re.IGNORECASE)
-
-
-def _is_document_goal(message: str) -> bool:
-    m = message or ""
-    if _DOC_EXCLUDE_RE.search(m):
-        return False
-    return bool(_DOC_GOAL_RE.search(m))
+# Planner intent → the LLMPlanner (capability graph), not the ReAct loop. Covers
+# document GENERATION (proposal / deck / docx …), workspace NOTE writes, and workspace
+# ORGANIZE. The detection lives in senpai.planner.selection (the planner owns intent);
+# these thin aliases keep the router readable and the names stable for tests. Ordinary
+# tool asks ("draft an email", "make a quote", "tell me about X") stay in the chat
+# loop; 稟議 (ringisho) has its own tool and is excluded.
+from senpai.planner.selection import (
+    is_document_goal as _is_document_goal,
+    is_planner_goal as _is_planner_goal,
+)
 
 
 def _is_followup(message: str, has_context: bool) -> bool:
@@ -1346,13 +1335,13 @@ def chat(req: ChatRequest):
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    # Document-generation goal ("make a proposal for …", "作って a deck") → route the
-    # SAME chat turn through the LLMPlanner: it selects a capability graph (Conversation
-    # / Workspace / CRM / Knowledge / Web / Documents), runs it on the engine, and
-    # returns the artifact. No /plan prefix needed — a normal prompt just works. An
-    # attached file rides along as conversation context; a selector-picked deal is
-    # authoritative. Everything else stays in the ReAct tool loop below.
-    if _is_document_goal(req.message):
+    # Planner goal ("make a proposal for …", "organize my files", "save this as a
+    # note") → route the SAME chat turn through the LLMPlanner: it selects a capability
+    # graph (Conversation / Workspace / CRM / Knowledge / Web / Documents / Write /
+    # Organize), runs it on the engine, and returns the artifact. No /plan prefix — a
+    # normal prompt just works. An attached file rides along as conversation context; a
+    # selector-picked deal is authoritative. Everything else stays in the ReAct loop.
+    if _is_planner_goal(req.message):
         convo: list[dict] = []
         for m in req.history:
             if m.role in ("user", "assistant") and m.content:

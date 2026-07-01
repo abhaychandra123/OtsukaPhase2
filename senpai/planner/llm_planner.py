@@ -55,6 +55,11 @@ class LLMPlanner:
     def select(self, goal: str, *, conversation: list[dict] | None = None,
                deal_id: str | None = None) -> Selection:
         base = heuristic_selection(goal, deal_hint=deal_id)   # deterministic + ID grounding
+        # Workspace ops (organize / note) are clear from the phrasing — the LLM's
+        # capability-selection is only for document GENERATION, so keep these
+        # deterministic and skip the extra round-trip.
+        if base.doc_kind in ("organize", "note"):
+            return base
         from senpai.documents.author import _use_llm
         if not _use_llm():
             return base

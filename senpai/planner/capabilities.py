@@ -213,11 +213,158 @@ class DocumentsCapability:
             citations=[*self._citations(ctx), f"doc://{rec['doc_id']}"], status="ok")
 
 
+# --- workspace WRITE terminals: note (create a text file) + organize (tidy) --------
+import re as _re
+
+
+def _slugify(text: str, default: str = "note") -> str:
+    base = _re.sub(r"[^\w]+", "-", (text or "").strip().lower()).strip("-")
+    base = _re.sub(r"-{2,}", "-", base)
+    return (base[:48] or default)
+
+
+# Deterministic filename → destination folder classifier for organize. Keyword-based,
+# GPU-free; a file that matches nothing lands in "other/". Order = priority.
+_ORGANIZE_RULES = (
+    ("quotes",        ("見積", "quote", "estimate", "quotation", "お見積")),
+    ("proposals",     ("提案", "proposal")),
+    ("meeting-notes", ("議事", "meeting", "kickoff", "minutes", "打合", "面談", "notes", "memo", "メモ")),
+    ("reports",       ("報告", "report", "レポート")),
+    ("contracts",     ("契約", "contract", "nda", "agreement", "覚書")),
+)
+
+
+def _organize_bucket(name: str) -> str:
+    low = name.lower()
+    for folder, keys in _ORGANIZE_RULES:
+        if any(k.lower() in low for k in keys):
+            return folder
+    return "other"
+
+
+class WorkspaceWriteCapability:
+    """Terminal that WRITES a short text note INTO the workspace (a real file the rep
+    keeps), authored from the gathered grounding + the goal. Reuses the existing,
+    sandbox-checked, confirm-gated `impl.edit_workspace_document` — this capability
+    does not open a path itself. Read-gather → write is how the planner produces a
+    persisted note instead of a downloadable artifact."""
+    name = "workspace_write"
+    metadata = CapabilityMetadata(OperationKind.WRITE, parallel_safe=False,
+                                  idempotent=False, retries=0)
+
+    def run(self, op: str, inputs: Mapping[str, Any], ctx: ExecContext) -> Evidence:
+        from senpai.tools.impl import edit_workspace_document
+        goal = str(inputs.get("goal") or inputs.get("prompt") or "")
+        grounding = _grounding_from_deps(ctx)
+        content = self._authored(goal, grounding, str(inputs.get("lang", "ja")))
+        path = str(inputs.get("path") or "").strip() or self._pick_path(goal)
+        result = edit_workspace_document(path, content, confirm=True)
+        if result.startswith("エラー") or "エラーが発生" in result:
+            return Evidence.error(result, provenance={"capability": "workspace_write"})
+        ctx.emit(f"ノートを保存: {path}")
+        grounded_on = sorted(ev.capability for ev in ctx.deps.values()
+                             if ev.status in ("ok", "partial") and ev.data.get("text"))
+        return Evidence.ok({"text": result, "saved_path": path, "kind": "note",
+                            "grounded_on": grounded_on},
+                           citations=[f"file://{path}"], status="ok")
+
+    def _pick_path(self, goal: str) -> str:
+        # A filename named in the goal wins; otherwise a slug under notes/.
+        m = _re.search(r"([\w./-]+\.(?:md|txt|json|csv))", goal, _re.IGNORECASE)
+        if m:
+            return m.group(1)
+        return f"notes/{_slugify(goal)}.md"
+
+    def _authored(self, goal: str, grounding: str, lang: str) -> str:
+        from senpai.documents import author
+        if author._use_llm():
+            instr = (
+                "You are writing a concise MARKDOWN note to save into the user's files. "
+                "Return ONLY the note body (no code fence). "
+                f"Write in {'Japanese' if lang == 'ja' else 'English'}.\n"
+                f"Use the reference context as the source of facts; do not invent figures.\n"
+                f"Request: {goal}\n\n"
+                f"{('参考情報:\n' + grounding) if grounding else '(参考情報なし)'}")
+            out = author._complete(instr)
+            if out:
+                return out.strip()
+        # Deterministic fallback: the grounding itself, titled.
+        title = goal.strip() or "メモ"
+        body = grounding or "(参考情報なし)"
+        return f"# {title}\n\n{body}\n"
+
+
+class WorkspaceOrganizeCapability:
+    """Terminal that TIDIES the workspace: buckets loose documents into topic folders
+    (quotes / proposals / meeting-notes / …) by a deterministic filename classifier.
+    `op='plan'` previews the moves (read-only, the default — organizing real files is
+    destructive); `op='apply'` performs them via the sandbox's no-overwrite
+    `move_within`. Files already inside a subfolder are left alone."""
+    name = "workspace_organize"
+    metadata = CapabilityMetadata(OperationKind.WRITE, parallel_safe=False,
+                                  idempotent=False, retries=0)
+
+    def run(self, op: str, inputs: Mapping[str, Any], ctx: ExecContext) -> Evidence:
+        from senpai.workspace import sandbox
+        docs = sandbox.list_documents()
+        root = sandbox.workspace_root()
+        # Only reorganize files sitting at the ROOT (don't churn already-filed docs).
+        moves: list[tuple[str, str]] = []
+        for p in docs:
+            rel = sandbox.rel(p)
+            if "/" in rel or "\\" in rel:
+                continue  # already in a subfolder
+            dest = f"{_organize_bucket(p.name)}/{p.name}"
+            if dest != rel:
+                moves.append((rel, dest))
+
+        if not moves:
+            return Evidence.ok({"text": "整理対象のファイルはありません（すべて分類済み）。",
+                                "kind": "organize", "moves": []}, status="ok")
+
+        preview = "\n".join(f"  {s} → {d}" for s, d in moves)
+        if op != "apply":
+            body = (f"【整理プレビュー（未実行・{len(moves)}件）】\n{preview}\n\n"
+                    "実行するには「整理して実行」/「apply」と指示してください。")
+            ctx.emit(f"{len(moves)}件の移動を提案")
+            return Evidence.ok({"text": body, "kind": "organize", "applied": False,
+                                "moves": [{"from": s, "to": d} for s, d in moves]},
+                               status="ok")
+
+        done, failed = [], []
+        for s, d in moves:
+            try:
+                sandbox.move_within(s, d)
+                done.append((s, d))
+            except Exception as e:  # noqa: BLE001 — one bad move must not abort the rest
+                failed.append((s, str(e)))
+        ctx.emit(f"{len(done)}件を整理")
+        lines = [f"【整理を実行しました（{len(done)}件）】",
+                 *(f"  {s} → {d}" for s, d in done)]
+        if failed:
+            lines.append(f"スキップ {len(failed)}件: " + "、".join(f"{s}({e})" for s, e in failed))
+        return Evidence.ok({"text": "\n".join(lines), "kind": "organize", "applied": True,
+                            "moves": [{"from": s, "to": d} for s, d in done]}, status="ok")
+
+
+def _grounding_from_deps(ctx: ExecContext) -> str:
+    """Assemble gathered grounding from ctx.deps, most-specific-first (shared by the
+    Documents and WorkspaceWrite terminals)."""
+    by_cap = {ev.capability: ev for ev in ctx.deps.values()}
+    blocks = []
+    for cap in _GATHER_ORDER:
+        ev = by_cap.get(cap)
+        if ev and ev.status in ("ok", "partial") and ev.data.get("text"):
+            blocks.append(f"【{ev.data.get('label', cap)}】\n{ev.data['text']}")
+    return "\n\n".join(blocks)
+
+
 def build_registry():
     """A registry with all planner capabilities, ready for the ExecutionEngine."""
     from senpai.orchestration import CapabilityRegistry
     reg = CapabilityRegistry()
     for cap in (ConversationCapability(), WorkspaceCapability(), CRMCapability(),
-                KnowledgeCapability(), WebCapability(), DocumentsCapability()):
+                KnowledgeCapability(), WebCapability(), DocumentsCapability(),
+                WorkspaceWriteCapability(), WorkspaceOrganizeCapability()):
         reg.register(cap)
     return reg
