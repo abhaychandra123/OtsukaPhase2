@@ -110,3 +110,23 @@ function makeId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `conv-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
+
+/**
+ * Shared "focus" between the Context pane and the Copilot thread in the
+ * Command Center. A deal/account clicked on the left pane writes here; the
+ * Workspace (right pane) reads it to pre-ground its skills and chat — so the
+ * rep never has to re-type a customer name or touch the Deal selector.
+ *
+ * Lives in the same keyed external store as the transcript, so it survives
+ * client navigation and stays in sync across both panes (and the mobile tabs)
+ * without prop-drilling or a new context provider.
+ */
+export type WorkspaceFocus = { dealId?: string; customerId?: string; customerName?: string };
+
+export function useWorkspaceFocus(role: string): {
+  focus: WorkspaceFocus;
+  setFocus: Dispatch<SetStateAction<WorkspaceFocus>>;
+} {
+  const [focus, setFocus] = useCachedState<WorkspaceFocus>(`workspace:${role}:focus`, {});
+  return { focus, setFocus };
+}

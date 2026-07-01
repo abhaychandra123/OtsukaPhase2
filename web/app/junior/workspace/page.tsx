@@ -1,19 +1,7 @@
-import { api } from "@/lib/api";
-import { Workspace } from "@/components/workspace/workspace";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-// Phase 2: the unified Workspace ships ALONGSIDE the standalone Coach so the two
-// can be compared directly. Reachable at /junior/workspace; not yet promoted in
-// nav (Phase 4). Wires the /review skill over the existing coach + narrate APIs.
-export default async function JuniorWorkspacePage() {
-  const [{ data: ex }, { data: db }, { data: pr }] = await Promise.all([
-    api.coachExamples(),
-    api.dashboard(),
-    api.principles(),
-  ]);
-
-  return (
-    <Workspace examples={ex.examples} deals={db.deals} principles={pr.principles} role="junior" />
-  );
+// The Workspace is now the right pane of the Junior Command Center at /junior.
+// Keep this route as a redirect so any saved links / bookmarks don't 404.
+export default function JuniorWorkspaceRedirect() {
+  redirect("/junior");
 }

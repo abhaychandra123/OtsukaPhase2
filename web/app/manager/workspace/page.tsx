@@ -1,13 +1,13 @@
 import { api } from "@/lib/api";
+import { PageHeader } from "@/components/site/page-header";
 import { Workspace } from "@/components/workspace/workspace";
 
 export const dynamic = "force-dynamic";
 
-// Manager Workspace — the same unified surface as junior, but chat runs the
-// manager tool-loop (team pipeline / at-risk deals / coaching focus) via
-// role="manager". This is what lets the standalone manager Assistant be retired:
-// managers get skills + grounded tool-calling chat in one place.
-export default async function ManagerWorkspacePage() {
+// The Copilot tab — the full-width unified surface (chat + skills) running the
+// manager tool-loop. Reached from the nav, or from a deal's "Ask the Copilot"
+// action which grounds it on that deal first.
+export default async function ManagerCopilotPage() {
   const [{ data: ex }, { data: db }, { data: pr }] = await Promise.all([
     api.coachExamples(),
     api.dashboard(),
@@ -15,6 +15,9 @@ export default async function ManagerWorkspacePage() {
   ]);
 
   return (
-    <Workspace examples={ex.examples} deals={db.deals} principles={pr.principles} role="manager" />
+    <div className="space-y-8">
+      <PageHeader eyebrowKey="nav.copilot" titleKey="assistant.title.manager" leadKey="assistant.lead.manager" />
+      <Workspace examples={ex.examples} deals={db.deals} principles={pr.principles} role="manager" />
+    </div>
   );
 }

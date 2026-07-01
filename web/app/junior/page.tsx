@@ -1,26 +1,27 @@
 import { api } from "@/lib/api";
-import { HomeContent } from "@/components/junior/home-content";
+import { CommandCenter } from "@/components/workspace/command-center";
+import { ContextPane } from "@/components/workspace/context-pane";
 
 export const dynamic = "force-dynamic";
 
+// The Junior home is the unified Command Center: live deal/account context on
+// the left, the Copilot (Workspace) on the right. Same server-side fetch the
+// standalone Workspace page used.
 export default async function JuniorHome() {
-  const [{ data: p }, { data: it }, { data: gr }] = await Promise.all([
+  const [{ data: ex }, { data: db }, { data: pr }, { data: gr }] = await Promise.all([
+    api.coachExamples(),
+    api.dashboard(),
     api.principles(),
-    api.items(),
     api.growth(),
   ]);
 
   return (
-    <HomeContent
-      principles={p.principles}
-      counts={{
-        pTotal: p.counts.total ?? 0,
-        pPending: p.counts.pending ?? 0,
-        iTotal: it.counts.total ?? 0,
-        iDraft: it.counts.pending ?? 0,
-        two: p.counts.two_source ?? 0,
-      }}
-      profile={gr.growth}
+    <CommandCenter
+      examples={ex.examples}
+      deals={db.deals}
+      principles={pr.principles}
+      role="junior"
+      contextSlot={<ContextPane deals={db.deals} role="junior" profile={gr.growth} />}
     />
   );
 }

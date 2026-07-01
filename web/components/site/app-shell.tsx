@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
   FileText,
   Home,
-  LayoutDashboard,
-  LayoutPanelLeft,
   Library,
   Lightbulb,
-  ListTree,
   LogOut,
   type LucideIcon,
-  ShieldAlert,
+  Sparkles,
   Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,26 +20,32 @@ import { useSession, type Role } from "@/lib/session";
 import { Brand } from "./brand";
 import { LangToggle } from "./lang-toggle";
 
-type NavItem = { href: string; key: string; icon: LucideIcon };
+type NavItem = { href: string; key: string; icon: LucideIcon; group?: string };
 
 const NAV: Record<Role, NavItem[]> = {
+  // Junior: the Command Center (Home) is the whole daily job — the old
+  // Workspace lives inside it (chat + context panes), so it's gone from the
+  // rail. Accounts / Knowledge / Reports / Ingestion are a visually separated
+  // secondary group: Accounts is the browse-everything directory that
+  // complements the Home pane's focused daily work; the rest are occasional,
+  // deliberate tasks.
   junior: [
-    { href: "/junior", key: "nav.home", icon: Home },
-    { href: "/junior/workspace", key: "nav.workspace", icon: LayoutPanelLeft },
-    { href: "/junior/ingestion", key: "nav.ingestion", icon: Upload },
-    { href: "/junior/accounts", key: "nav.accounts", icon: Building2 },
-    { href: "/junior/knowledge", key: "nav.knowledge", icon: Library },
-    { href: "/junior/reports", key: "nav.reports", icon: FileText },
+    { href: "/junior", key: "nav.home", icon: Home, group: "main" },
+    { href: "/junior/accounts", key: "nav.accounts", icon: Building2, group: "more" },
+    { href: "/junior/knowledge", key: "nav.knowledge", icon: Library, group: "more" },
+    { href: "/junior/reports", key: "nav.reports", icon: FileText, group: "more" },
+    { href: "/junior/ingestion", key: "nav.ingestion", icon: Upload, group: "more" },
   ],
+  // Manager: Home is the overview-first team dashboard (Overview / All deals /
+  // Flags tabs — the former Dashboard + Pipeline + Reliability routes). The
+  // Copilot is its own tab. Knowledge absorbs the old principle-authoring
+  // "Ingestion" page. Accounts / Coaching round out the secondary group.
   manager: [
-    { href: "/manager", key: "nav.dashboard", icon: LayoutDashboard },
-    { href: "/manager/workspace", key: "nav.workspace", icon: LayoutPanelLeft },
-    { href: "/manager/ingestion", key: "nav.mingestion", icon: Upload },
-    { href: "/manager/pipeline", key: "nav.pipeline", icon: ListTree },
-    { href: "/manager/accounts", key: "nav.accounts", icon: Building2 },
-    { href: "/manager/coaching", key: "nav.coaching", icon: Lightbulb },
-    { href: "/manager/reliability", key: "nav.reliability", icon: ShieldAlert },
-    { href: "/manager/knowledge", key: "nav.mknowledge", icon: Library },
+    { href: "/manager", key: "nav.home", icon: Home, group: "main" },
+    { href: "/manager/workspace", key: "nav.copilot", icon: Sparkles, group: "more" },
+    { href: "/manager/coaching", key: "nav.coaching", icon: Lightbulb, group: "more" },
+    { href: "/manager/accounts", key: "nav.accounts", icon: Building2, group: "more" },
+    { href: "/manager/knowledge", key: "nav.mknowledge", icon: Library, group: "more" },
   ],
 };
 
@@ -81,21 +84,25 @@ export function AppShell({ role, children }: { role: Role; children: React.React
         </div>
 
         <nav className="mt-4 flex flex-col gap-0.5">
-          {nav.map((item) => {
+          {nav.map((item, i) => {
             const active = item.href === `/${role}` ? pathname === item.href : pathname.startsWith(item.href);
             const Icon = item.icon;
+            // Separate nav groups (e.g. Junior's primary vs. secondary items).
+            const showDivider = i > 0 && item.group !== nav[i - 1].group;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition-colors",
-                  active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-                )}
-              >
-                <Icon className={cn("h-[18px] w-[18px]", active ? "text-primary" : "")} />
-                {t(item.key)}
-              </Link>
+              <Fragment key={item.href}>
+                {showDivider && <div className="mx-2.5 my-2 border-t border-border/60" />}
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition-colors",
+                    active ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                  )}
+                >
+                  <Icon className={cn("h-[18px] w-[18px]", active ? "text-primary" : "")} />
+                  {t(item.key)}
+                </Link>
+              </Fragment>
             );
           })}
         </nav>

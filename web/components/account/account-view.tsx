@@ -45,7 +45,20 @@ function bandClasses(band: Band) {
     : "text-band-red bg-band-red/8 ring-band-red/25";
 }
 
-export function AccountView({ customerId, role }: { customerId: string; role: "junior" | "manager" }) {
+export function AccountView({
+  customerId,
+  role,
+  compact = false,
+  onAskCopilot,
+}: {
+  customerId: string;
+  role: "junior" | "manager";
+  // Drawer mode: trim the heavy analytical sections to a quick glance
+  // (header + health + risks + open deals) and offer to hand off to the Copilot
+  // for the deep read, instead of duplicating the full page in a side panel.
+  compact?: boolean;
+  onAskCopilot?: () => void;
+}) {
   const { t, lang } = useT();
   const [acct, setAcct] = useState<AccountSummary | null>(null);
   const [live, setLive] = useState(true);
@@ -94,7 +107,7 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
 
   return (
     <div className="space-y-6">
-      <BackLink role={role} t={t} />
+      {!compact && <BackLink role={role} t={t} />}
 
       {/* HEADER + HEALTH GAUGE */}
       <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-border bg-card p-5">
@@ -123,8 +136,20 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
         <HealthGauge score={h.score} band={h.band} label={L(BAND_TEXT[h.band])} />
       </header>
 
+      {/* Drawer handoff: skip the deep analytical read here and let the rep ask
+          the Copilot, which grounds on this account (see ContextPane). */}
+      {compact && onAskCopilot && (
+        <button
+          type="button"
+          onClick={onAskCopilot}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-[13px] font-medium text-white transition hover:opacity-90"
+        >
+          <Sparkles className="h-4 w-4" /> {t("cc.askCopilot")}
+        </button>
+      )}
+
       {/* STRATEGIC STANCE — deterministic tier + region posture, with its rationale */}
-      {acct.strategy && (
+      {!compact && acct.strategy && (
         <section className="rounded-2xl border border-border bg-card p-5">
           <SectionTitle
             ja="戦略スタンス"
@@ -151,12 +176,14 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
       )}
 
       {/* ACCOUNT HEALTH — dimensions / explainability */}
-      <section className="rounded-2xl border border-border bg-card p-5">
-        <SectionTitle ja="アカウント健全度" en="Account Health" sub={lang === "ja" ? "スコアの内訳（高いほど健全）" : "How the score breaks down (higher = healthier)"} />
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-          {h.dimensions.map((d) => <DimensionBar key={d.name} d={d} label={L(DIM_LABEL[d.name] ?? { ja: d.name, en: d.name })} />)}
-        </div>
-      </section>
+      {!compact && (
+        <section className="rounded-2xl border border-border bg-card p-5">
+          <SectionTitle ja="アカウント健全度" en="Account Health" sub={lang === "ja" ? "スコアの内訳（高いほど健全）" : "How the score breaks down (higher = healthier)"} />
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            {h.dimensions.map((d) => <DimensionBar key={d.name} d={d} label={L(DIM_LABEL[d.name] ?? { ja: d.name, en: d.name })} />)}
+          </div>
+        </section>
+      )}
 
       {/* RELATIONSHIP TRAJECTORY */}
       {(acct.risk_signals.length > 0 || positives.length > 0) && (
@@ -174,7 +201,7 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
       )}
 
       {/* EXPANSION OPPORTUNITIES */}
-      {opps.length > 0 && (
+      {!compact && opps.length > 0 && (
         <section className="rounded-2xl border border-border bg-card p-5">
           <SectionTitle ja="拡大の機会" en="Expansion Opportunities" sub={lang === "ja" ? "クロスセル・アップセル・成長余地" : "Cross-sell, upsell and growth"} />
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -198,8 +225,9 @@ export function AccountView({ customerId, role }: { customerId: string; role: "j
         </section>
       )}
 
-      {/* SENIOR ACCOUNT COMMENTARY (streamed) */}
-      <AccountCommentary customerId={customerId} band={h.band} score={h.score} />
+      {/* SENIOR ACCOUNT COMMENTARY (streamed) — the deep read lives on the full
+          page / Copilot, not in the quick drawer glance. */}
+      {!compact && <AccountCommentary customerId={customerId} band={h.band} score={h.score} />}
 
       {/* OPEN DEALS — navigate back to deals */}
       {openDeals.length > 0 && (
