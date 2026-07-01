@@ -30,3 +30,5 @@ Created a real-time visualization system for Graph RAG queries. Queries execute 
 - When importing visualization_server, hub.subscribers goes from 0 to 1 â
 - Manual hub.emit() creates event history and queues event â
 - But reps_who_win_viz() query produces NO events in hub.event_history
+
+curl -X POST "http://localhost:8001/api/query/reps_who_win?category=サーバー"
