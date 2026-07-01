@@ -1060,6 +1060,38 @@ def edit_workspace_document(path: str, content: str, confirm: bool = False) -> s
         return f"ファイルの保存中にエラーが発生しました: {e}"
 
 
+def move_workspace_document(src: str, dst: str, confirm: bool = False) -> str:
+    """Move or rename a local document in the workspace.
+    To prevent data loss, `confirm=True` must be explicitly passed to commit the move;
+    otherwise, a preview is returned for the user to review.
+    """
+    from senpai.workspace import sandbox
+    try:
+        s = sandbox.safe_path(src)
+        d = sandbox.safe_path(dst)
+    except sandbox.SandboxError as e:
+        return f"エラー: パスが無効または境界外です ({e})"
+    
+    if not s.exists():
+        return f"エラー: 移動元のファイルが存在しません: {src}"
+    
+    if not confirm:
+        return (f"【ファイル移動プレビュー（実行されていません）】\n"
+                f"移動元: {sandbox.rel(s)}\n"
+                f"移動先: {sandbox.rel(d)}\n\n"
+                f"よろしければ確認して「移動して」と指示してください（confirm=True を指定して再実行します）。")
+    
+    try:
+        new_path = sandbox.move_within(src, dst)
+        from senpai.retrieval import trace as _trace
+        _trace.record("workspace_move", scope="local_files",
+                      items=[{"id": new_path, "score": 1}],
+                      query=f"{src} -> {dst}", n=1)
+        return f"ファイルを移動しました: {sandbox.rel(s)} -> {new_path}"
+    except Exception as e:
+        return f"ファイルの移動中にエラーが発生しました: {e}"
+
+
 _DISPATCH = {
     "query_spr": query_spr,
     "find_deals": find_deals,
@@ -1093,6 +1125,7 @@ _DISPATCH = {
     "segment_intelligence": segment_intelligence,
     "search_workspace_documents": search_workspace_documents,
     "edit_workspace_document": edit_workspace_document,
+    "move_workspace_document": move_workspace_document,
     # Document generation (the chatbot's "do stuff" tools)
     "generate_proposal": generate_proposal,
     "generate_ringisho": generate_ringisho,

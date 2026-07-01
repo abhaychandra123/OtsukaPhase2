@@ -1351,7 +1351,7 @@ def chat(req: ChatRequest):
     # Organize), runs it on the engine, and returns the artifact. No /plan prefix — a
     # normal prompt just works. An attached file rides along as conversation context; a
     # selector-picked deal is authoritative. Everything else stays in the ReAct loop.
-    if _is_planner_goal(req.message):
+    if _is_planner_goal(req.message, req.history):
         convo: list[dict] = []
         for m in req.history:
             if m.role in ("user", "assistant") and m.content:
