@@ -20,7 +20,6 @@ def workspace_root() -> Path:
     """The resolved sandbox root (re-read each call so tests can monkeypatch config)."""
     return Path(config.WORKSPACE_ROOT).resolve()
 
-
 def safe_path(candidate: str | Path) -> Path:
     """Resolve `candidate` (absolute, or relative to the root) and guarantee it stays
     inside the sandbox. Raises SandboxError otherwise. Does NOT require existence."""
@@ -47,23 +46,36 @@ def is_allowed(path: Path) -> bool:
 def list_documents() -> list[Path]:
     """Every allowed document under the sandbox root (recursive). Empty list when the
     root does not exist — a missing workspace degrades, never raises."""
+    import os
     root = workspace_root()
     if not root.is_dir():
         return []
+    
     out: list[Path] = []
-    for p in root.rglob("*"):
-        # rglob can surface symlinked paths; re-validate each against the root.
-        try:
-            if is_allowed(p) and safe_path(p):
-                out.append(p)
-        except SandboxError:
-            continue
+    ignore_dirs = {".git", "node_modules", ".venv", "venv", ".next", "__pycache__", "dist"}
+    
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Prune ignored directories in-place so os.walk doesn't descend into them
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+        
+        dp = Path(dirpath)
+        for f in filenames:
+            p = dp / f
+            try:
+                if is_allowed(p) and safe_path(p):
+                    out.append(p)
+            except SandboxError:
+                continue
     return out
 
 
 def rel(path: Path) -> str:
     """Path relative to the root, for human-readable citations (`file://<rel>`)."""
     try:
-        return str(path.resolve().relative_to(workspace_root()))
+        resolved = path.resolve()
+        root = workspace_root()
+        if root in resolved.parents or root == resolved:
+            return str(resolved.relative_to(root))
+        return str(resolved)  # Use absolute path for external files
     except (ValueError, OSError):
         return path.name

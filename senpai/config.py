@@ -165,7 +165,7 @@ GENERATED_DIR = PKG_DIR / "data" / "generated"
 # traversal, no symlink escape). Point SENPAI_WORKSPACE_ROOT at a real docs folder
 # to demo; defaults to a gitignored sample dir under the package.
 WORKSPACE_ROOT = Path(
-    os.environ.get("SENPAI_WORKSPACE_ROOT", str(PKG_DIR / "data" / "workspace"))
+    os.environ.get("SENPAI_WORKSPACE_ROOT", r"E:\my_stuff")
 ).resolve()
 # Extensions the Workspace will find/extract (read-only). Lowercase, with dot.
 WORKSPACE_EXTS = tuple(
